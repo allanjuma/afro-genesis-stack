@@ -6,8 +6,36 @@
 
 set -e
 
+install_dependencies() {
+    echo "📦 Installing dependencies..."
+    
+    # Check if package.json exists
+    if [ ! -f "package.json" ]; then
+        echo "❌ package.json not found. Please run this script from the project root."
+        exit 1
+    fi
+    
+    # Install dependencies using available package manager
+    if command -v bun &> /dev/null; then
+        echo "🔨 Installing dependencies with bun..."
+        bun install
+    elif command -v npm &> /dev/null; then
+        echo "🔨 Installing dependencies with npm..."
+        npm install
+    elif command -v yarn &> /dev/null; then
+        echo "🔨 Installing dependencies with yarn..."
+        yarn install
+    else
+        echo "❌ No package manager found. Please install npm, yarn, or bun."
+        exit 1
+    fi
+}
+
 build_appimage() {
     echo "🚀 Building Afro Network AppImage only..."
+    
+    # Install dependencies first
+    install_dependencies
     
     # Check if AppImageTool is available
     if ! command -v appimagetool &> /dev/null; then
@@ -106,12 +134,12 @@ EOF
     # Build the project first if dist doesn't exist
     if [ ! -d "dist" ]; then
         echo "🔨 Building React application..."
-        if command -v npm &> /dev/null; then
+        if command -v bun &> /dev/null; then
+            bun run build
+        elif command -v npm &> /dev/null; then
             npm run build
         elif command -v yarn &> /dev/null; then
             yarn build
-        elif command -v bun &> /dev/null; then
-            bun run build
         else
             echo "❌ No package manager found. Please install npm, yarn, or bun."
             exit 1
