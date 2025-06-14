@@ -141,16 +141,27 @@ EOF
     # Build the project first if dist doesn't exist
     if [ ! -d "dist" ]; then
         echo "🔨 Building React application..."
+        
+        # Set Node.js options to handle crypto issues
+        export NODE_OPTIONS="--openssl-legacy-provider"
+        
+        # Build with appropriate package manager and handle crypto issues
         if command -v bun &> /dev/null; then
+            echo "Using bun to build..."
             bun run build
         elif command -v npm &> /dev/null; then
+            echo "Using npm to build..."
             npm run build
         elif command -v yarn &> /dev/null; then
+            echo "Using yarn to build..."
             yarn build
         else
             echo "❌ No package manager found. Please install npm, yarn, or bun."
             exit 1
         fi
+        
+        # Unset the Node options after build
+        unset NODE_OPTIONS
     fi
     
     # Copy built React app
