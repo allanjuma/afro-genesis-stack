@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     desktop-file-utils \
     python3 \
     python3-pip \
+    dos2unix \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js v18 via NodeSource
@@ -40,9 +41,11 @@ RUN npm install
 # Copy source code
 COPY . .
 
-# Build script
-COPY appimage/build-appimage.sh /usr/local/bin/build-appimage.sh
-RUN chmod +x /usr/local/bin/build-appimage.sh
+# Copy and fix build script line endings
+COPY appimage/build-appimage.sh /tmp/build-appimage.sh
+RUN dos2unix /tmp/build-appimage.sh && \
+    cp /tmp/build-appimage.sh /usr/local/bin/build-appimage.sh && \
+    chmod +x /usr/local/bin/build-appimage.sh
 
 # Create output directory
 RUN mkdir -p /output
