@@ -53,13 +53,13 @@ mkdir -p AppDir/usr/bin
 mkdir -p AppDir/usr/share/applications
 mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
 
-# Copy ALL built React app files to AppDir root
-echo "📦 Copying ALL built React app files to AppImage..."
+# Copy ALL built React app files to AppDir root (not subdirectory)
+echo "📦 Copying ALL built React app files to AppDir root..."
 cp -r dist/* AppDir/
 
-# Verify critical files were copied
+# Verify critical files were copied to AppDir root
 if [ ! -f "AppDir/index.html" ]; then
-    echo "❌ Critical error: index.html not found in AppDir"
+    echo "❌ Critical error: index.html not found in AppDir root"
     echo "Contents of dist/:"
     ls -la dist/
     echo "Contents of AppDir/:"
@@ -67,21 +67,24 @@ if [ ! -f "AppDir/index.html" ]; then
     exit 1
 fi
 
-echo "✅ All React app files copied to AppImage"
+echo "✅ All React app files copied to AppDir root"
 echo "🔍 AppDir contents:"
 ls -la AppDir/
 
-# Create the main executable script
+# Create the main executable script that serves from AppDir root
 cat > AppDir/usr/bin/afro-network << 'EOF'
 #!/bin/bash
-APPDIR="$(dirname "$(readlink -f "${0}")")/.."
+APPDIR="$(dirname "$(readlink -f "${0}")")/../.."
 export PATH="${APPDIR}/usr/bin:${PATH}"
 
-# Start the React dashboard
+# Start the React dashboard from AppDir root where files are located
 cd "${APPDIR}"
 if [ -f "index.html" ]; then
     echo "🚀 Starting Afro Network Dashboard on http://localhost:8080"
-    python3 -m http.server 8080 &
+    echo "📁 Serving files from: ${APPDIR}"
+    
+    # Start HTTP server in background
+    python3 -m http.server 8080 > /dev/null 2>&1 &
     SERVER_PID=$!
     
     # Wait a moment for server to start
@@ -89,20 +92,22 @@ if [ -f "index.html" ]; then
     
     # Open browser if available
     if command -v xdg-open &> /dev/null; then
-        xdg-open http://localhost:8080 &
+        xdg-open http://localhost:8080 2>/dev/null &
     elif command -v firefox &> /dev/null; then
-        firefox http://localhost:8080 &
+        firefox http://localhost:8080 2>/dev/null &
     elif command -v chromium-browser &> /dev/null; then
-        chromium-browser http://localhost:8080 &
+        chromium-browser http://localhost:8080 2>/dev/null &
     else
         echo "📱 Dashboard available at: http://localhost:8080"
     fi
     
     # Keep the server running
     echo "🛡️  Server running (PID: $SERVER_PID). Press Ctrl+C to stop."
+    trap "kill $SERVER_PID 2>/dev/null" EXIT
     wait $SERVER_PID
 else
     echo "❌ Dashboard files not found at: ${APPDIR}"
+    echo "Looking for index.html in: ${APPDIR}/index.html"
     echo "Contents of AppDir:"
     ls -la "${APPDIR}"
     exit 1
@@ -164,7 +169,7 @@ if [ -f "AfroNetwork.AppImage" ]; then
     echo "📱 You can now run: ./AfroNetwork.AppImage"
     echo ""
     echo "🎉 AppImage Features:"
-    echo "   • Self-contained Afro Network dashboard"
+    echo "   • Self-contained Afro Network dashboard"  
     echo "   • Portable - runs on any Linux distribution"
     echo "   • No installation required"
     echo "   • Double-click to launch or run from terminal"

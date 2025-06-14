@@ -119,14 +119,11 @@ build_appimage_native() {
     mkdir -p AppDir/usr/share/applications
     mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
     
-    # Copy application files
-    echo "📄 Copying built React app files to AppImage..."
-    
-    # Copy ALL built React app files to AppDir root (not just some files)
-    echo "📦 Copying $(ls -1 dist | wc -l) files from dist/ to AppDir/..."
+    # Copy ALL built React app files to AppDir root (not usr/bin subdirectory)
+    echo "📦 Copying ALL built React app files to AppDir root..."
     cp -r dist/* AppDir/
     
-    # Verify files were copied
+    # Verify files were copied correctly
     if [ ! -f "AppDir/index.html" ]; then
         echo "❌ index.html not found in AppDir after copying"
         echo "Contents of dist/:"
@@ -136,19 +133,23 @@ build_appimage_native() {
         exit 1
     fi
     
-    echo "✅ React app files copied successfully to AppDir"
+    echo "✅ React app files copied successfully to AppDir root"
+    echo "📋 AppDir now contains: $(ls -1 AppDir | wc -l) items"
     
-    # Create the main executable script
+    # Create the main executable script that starts from AppDir root
     cat > AppDir/usr/bin/afro-network << 'EOF'
 #!/bin/bash
-APPDIR="$(dirname "$(readlink -f "${0}")")/.."
+APPDIR="$(dirname "$(readlink -f "${0}")")/../.."
 export PATH="${APPDIR}/usr/bin:${PATH}"
 
-# Start the React dashboard
+# Start the React dashboard from AppDir root where files are located
 cd "${APPDIR}"
 if [ -f "index.html" ]; then
     echo "🚀 Starting Afro Network Dashboard on http://localhost:8080"
-    python3 -m http.server 8080 &
+    echo "📁 Serving files from: ${APPDIR}"
+    
+    # Start HTTP server in background
+    python3 -m http.server 8080 > /dev/null 2>&1 &
     SERVER_PID=$!
     
     # Wait a moment for server to start
@@ -156,20 +157,22 @@ if [ -f "index.html" ]; then
     
     # Open browser if available
     if command -v xdg-open &> /dev/null; then
-        xdg-open http://localhost:8080 &
+        xdg-open http://localhost:8080 2>/dev/null &
     elif command -v firefox &> /dev/null; then
-        firefox http://localhost:8080 &
+        firefox http://localhost:8080 2>/dev/null &
     elif command -v chromium-browser &> /dev/null; then
-        chromium-browser http://localhost:8080 &
+        chromium-browser http://localhost:8080 2>/dev/null &
     else
         echo "📱 Dashboard available at: http://localhost:8080"
     fi
     
     # Keep the server running
     echo "🛡️  Server running (PID: $SERVER_PID). Press Ctrl+C to stop."
+    trap "kill $SERVER_PID 2>/dev/null" EXIT
     wait $SERVER_PID
 else
     echo "❌ Dashboard files not found at: ${APPDIR}"
+    echo "Looking for index.html in: ${APPDIR}/index.html"
     echo "Contents of AppDir:"
     ls -la "${APPDIR}"
     exit 1
@@ -177,7 +180,7 @@ fi
 EOF
     chmod +x AppDir/usr/bin/afro-network
     
-    # Create desktop file with single main category
+    # Create desktop file
     cat > AppDir/usr/share/applications/afro-network.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
@@ -252,6 +255,109 @@ EOF
     
     # Cleanup
     rm -rf AppDir
+}
+
+# ... keep existing code (install_fuse, install_dependencies, ensure_node_v18 functions)
+
+build_react_app() {
+    echo "🔨 Building React application with Node.js v$(node -v | cut -d'v' -f2)..."
+    
+    # Remove existing dist directory to ensure clean build
+    if [ -d "dist" ]; then
+        echo "🧹 Cleaning existing dist directory..."
+        rm -rf dist
+    fi
+    
+    build_success=false
+    
+    # Strategy 1: Try with available package manager
+    if command -v bun &> /dev/null; then
+        echo "📦 Attempting build with bun..."
+        if bun run build; then
+            build_success=true
+            echo "✅ Build succeeded with bun and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+    elif command -v npm &> /dev/null; then
+        echo "📦 Attempting build with npm..."
+        if npm run build; then
+            build_success=true
+            echo "✅ Build succeeded with npm and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+    elif command -v yarn &> /dev/null; then
+        echo "📦 Attempting build with yarn..."
+        if yarn build; then
+            build_success=true
+            echo "✅ Build succeeded with yarn and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+    fi
+    
+    # Strategy 2: Try with node polyfills if normal build failed
+    if [ "$build_success" = false ] && command -v npm &> /dev/null; then
+        echo "📦 Attempting build with node polyfills..."
+        
+        # Install vite-plugin-node-polyfills if not present
+        if ! npm list vite-plugin-node-polyfills &>/dev/null; then
+            echo "Installing vite-plugin-node-polyfills..."
+            npm install --save-dev vite-plugin-node-polyfills
+        fi
+        
+        # Create a temporary vite config that includes node polyfills
+        cat > vite.config.temp.ts << 'VITE_EOF'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
+import { componentTagger } from "lovable-tagger";
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+export default defineConfig(({ mode }) => ({
+  server: {
+    host: "::",
+    port: 8080,
+  },
+  plugins: [
+    react(),
+    nodePolyfills({
+      protocolImports: true,
+    }),
+    mode === 'development' &&
+    componentTagger(),
+  ].filter(Boolean),
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+}));
+VITE_EOF
+        
+        # Try building with the temporary config
+        if npx vite build --config vite.config.temp.ts; then
+            build_success=true
+            echo "✅ Build succeeded with node polyfills and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+        
+        # Clean up temporary config
+        rm -f vite.config.temp.ts
+    fi
+    
+    # If all strategies failed, exit with error
+    if [ "$build_success" = false ]; then
+        echo "❌ All build strategies failed with Node.js v$(node -v | cut -d'v' -f2)."
+        echo "💡 Try running 'npm run build' manually to see the full error output."
+        echo "🔧 Ensure you're using Node.js v18+ for crypto compatibility."
+        exit 1
+    fi
+    
+    # Verify dist directory was created with files
+    if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
+        echo "❌ Build completed but dist directory is missing or empty"
+        echo "💡 Check if the build process completed successfully"
+        exit 1
+    fi
+    
+    echo "✅ React app built successfully - dist directory created with $(ls dist | wc -l) files"
+    echo "🔍 Built files include:"
+    ls -la dist/
 }
 
 install_fuse() {
@@ -464,107 +570,6 @@ ensure_node_v18() {
     else
         echo "✅ Node.js v18+ detected"
     fi
-}
-
-build_react_app() {
-    echo "🔨 Building React application with Node.js v$(node -v | cut -d'v' -f2)..."
-    
-    # Remove existing dist directory to ensure clean build
-    if [ -d "dist" ]; then
-        echo "🧹 Cleaning existing dist directory..."
-        rm -rf dist
-    fi
-    
-    build_success=false
-    
-    # Strategy 1: Try with available package manager
-    if command -v bun &> /dev/null; then
-        echo "📦 Attempting build with bun..."
-        if bun run build; then
-            build_success=true
-            echo "✅ Build succeeded with bun and Node.js v$(node -v | cut -d'v' -f2)"
-        fi
-    elif command -v npm &> /dev/null; then
-        echo "📦 Attempting build with npm..."
-        if npm run build; then
-            build_success=true
-            echo "✅ Build succeeded with npm and Node.js v$(node -v | cut -d'v' -f2)"
-        fi
-    elif command -v yarn &> /dev/null; then
-        echo "📦 Attempting build with yarn..."
-        if yarn build; then
-            build_success=true
-            echo "✅ Build succeeded with yarn and Node.js v$(node -v | cut -d'v' -f2)"
-        fi
-    fi
-    
-    # Strategy 2: Try with node polyfills if normal build failed
-    if [ "$build_success" = false ] && command -v npm &> /dev/null; then
-        echo "📦 Attempting build with node polyfills..."
-        
-        # Install vite-plugin-node-polyfills if not present
-        if ! npm list vite-plugin-node-polyfills &>/dev/null; then
-            echo "Installing vite-plugin-node-polyfills..."
-            npm install --save-dev vite-plugin-node-polyfills
-        fi
-        
-        # Create a temporary vite config that includes node polyfills
-        cat > vite.config.temp.ts << 'VITE_EOF'
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
-
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [
-    react(),
-    nodePolyfills({
-      protocolImports: true,
-    }),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-}));
-VITE_EOF
-        
-        # Try building with the temporary config
-        if npx vite build --config vite.config.temp.ts; then
-            build_success=true
-            echo "✅ Build succeeded with node polyfills and Node.js v$(node -v | cut -d'v' -f2)"
-        fi
-        
-        # Clean up temporary config
-        rm -f vite.config.temp.ts
-    fi
-    
-    # If all strategies failed, exit with error
-    if [ "$build_success" = false ]; then
-        echo "❌ All build strategies failed with Node.js v$(node -v | cut -d'v' -f2)."
-        echo "💡 Try running 'npm run build' manually to see the full error output."
-        echo "🔧 Ensure you're using Node.js v18+ for crypto compatibility."
-        exit 1
-    fi
-    
-    # Verify dist directory was created with files
-    if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
-        echo "❌ Build completed but dist directory is missing or empty"
-        echo "💡 Check if the build process completed successfully"
-        exit 1
-    fi
-    
-    echo "✅ React app built successfully - dist directory created with $(ls dist | wc -l) files"
-    echo "🔍 Built files include:"
-    ls -la dist/
 }
 
 build_appimage() {
