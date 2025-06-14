@@ -1,11 +1,20 @@
 
 #!/bin/bash
 
+# Mobile Money SMS Integration Configuration
+export AFRO_MOBILE_MONEY_ENABLED=true
+export AFRO_SMS_VALIDATION=true
+export AFRO_ADDRESS_PREFIX="afro:254700000000:"
+
 # Create account if it doesn't exist
 if [ ! -f /root/.ethereum/keystore/* ]; then
-    echo "Creating validator account..."
+    echo "Creating validator account with mobile money support..."
     geth account new --password /dev/null
 fi
+
+echo "Starting Afro validator with mobile money integration..."
+echo "Mobile Money Address Format: ${AFRO_ADDRESS_PREFIX}[extra_chars]"
+echo "SMS Validation: ${AFRO_SMS_VALIDATION}"
 
 # Start geth with all necessary configurations
 exec geth \
@@ -15,12 +24,12 @@ exec geth \
     --http.addr 0.0.0.0 \
     --http.port 8545 \
     --http.corsdomain "*" \
-    --http.api "eth,net,web3,personal,admin,miner" \
+    --http.api "eth,net,web3,personal,admin,miner,afro" \
     --ws \
     --ws.addr 0.0.0.0 \
     --ws.port 8546 \
     --ws.origins "*" \
-    --ws.api "eth,net,web3,personal,admin,miner" \
+    --ws.api "eth,net,web3,personal,admin,miner,afro" \
     --port 30303 \
     --mine \
     --miner.threads 1 \

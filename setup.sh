@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Afro Network Docker Stack Setup Script
@@ -30,6 +29,13 @@ COIN=AFRO
 COIN_NAME=Afro
 NETWORK_NAME=Afro Network
 SUBNETWORK=Afro Mainnet
+
+# Mobile Money Integration
+AFRO_MOBILE_MONEY_ENABLED=true
+AFRO_SMS_VALIDATION=true
+AFRO_ADDRESS_PREFIX=afro:254700000000:
+AFRO_MOBILE_COUNTRY_CODE=254
+AFRO_MOBILE_MONEY_CODE=700000000
 
 # Testnet Configuration
 TESTNET_NETWORK_ID=7879
@@ -63,7 +69,7 @@ EXPLORER_PORT=4000
 TESTNET_EXPLORER_PORT=4001
 WEB_PORT=80
 EOF
-    echo "✅ .env file created"
+    echo "✅ .env file created with mobile money support"
 fi
 
 # Function to check if container exists and get its image ID
@@ -197,6 +203,13 @@ echo "   • Testnet RPC: http://localhost:8547"
 echo "   • Mainnet WebSocket: ws://localhost:8546"
 echo "   • Testnet WebSocket: ws://localhost:8548"
 echo ""
+echo "📱 Mobile Money Integration:"
+echo "   • Address Format: afro:254700000000:[extra_characters]"
+echo "   • Country Code: 254 (Kenya)"
+echo "   • Mobile Money Code: 700000000"
+echo "   • SMS Validation: Enabled"
+echo "   • OTP Generation: From address extra characters"
+echo ""
 echo "🔧 MetaMask Configuration:"
 echo "   Mainnet:"
 echo "   • Network Name: Afro Network"
@@ -216,6 +229,7 @@ echo "📖 Next Steps:"
 echo "   1. Visit http://localhost to see the landing page"
 echo "   2. Click 'Add Mainnet to MetaMask' or 'Add Testnet to MetaMask'"
 echo "   3. Explore the blockchain at http://localhost:4000 (mainnet) or http://localhost:4001 (testnet)"
+echo "   4. Test mobile money address format: afro:254700000000:[your_hex_chars]"
 echo ""
 echo "🔧 Management Commands:"
 echo "   • View logs: docker-compose logs -f"
@@ -224,4 +238,4 @@ echo "   • Restart services: docker-compose restart"
 echo "   • Update: docker-compose pull && docker-compose up -d"
 echo "   • Force rebuild: docker-compose build --no-cache && docker-compose up -d"
 echo ""
-echo "Enjoy your Afro Network! 🌍"
+echo "Enjoy your Afro Network with Mobile Money integration! 🌍📱"
