@@ -1,416 +1,226 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Afro Network - Next Generation Blockchain</title>
+    <title>Afro Network - Next Generation Mobile-First Blockchain</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" href="images/afro-logo.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <header>
-        <nav>
-            <div class="container">
-                <div class="logo">
-                    <img src="images/afro-logo.png" alt="Afro Network" height="40">
-                    <span>Afro Network</span>
-                </div>
-                <ul>
-                    <li><a href="#home">Home</a></li>
-                    <li><a href="#docs">Documentation</a></li>
-                    <li><a href="#mobile-money">Mobile Money</a></li>
-                    <li><a href="#address-generation">Address Generation</a></li>
-                    <li><a href="http://localhost:4000" target="_blank">Explorer</a></li>
-                    <li><a href="#rpc">RPC</a></li>
-                    <li><a href="faucet.html">Faucet</a></li>
-                </ul>
+    <header class="fixed-header">
+        <nav class="nav-container">
+            <div class="nav-brand">
+                <img src="images/afro-logo.png" alt="Afro Network" class="logo-img">
+                <span class="brand-text">Afro Network</span>
             </div>
+            <ul class="nav-menu">
+                <li><a href="#home" class="nav-link">Home</a></li>
+                <li><a href="#features" class="nav-link">Features</a></li>
+                <li><a href="#mobile-money" class="nav-link">Mobile Money</a></li>
+                <li><a href="#developers" class="nav-link">Developers</a></li>
+                <li><a href="ecosystem.html" class="nav-link">Ecosystem</a></li>
+                <li><a href="http://localhost:4000" target="_blank" class="nav-link">Explorer</a></li>
+                <li><a href="faucet.html" class="nav-link-cta">Faucet</a></li>
+            </ul>
         </nav>
     </header>
 
     <main>
-        <section id="home" class="hero">
-            <div class="container">
-                <h1>Welcome to Afro Network</h1>
-                <p>A fast, secure, and decentralized blockchain network built for the future.</p>
-                <div class="cta-buttons">
-                    <button onclick="addToMetaMask('mainnet')" class="btn-primary">Add Mainnet to MetaMask</button>
-                    <button onclick="addToMetaMask('testnet')" class="btn-secondary">Add Testnet to MetaMask</button>
-                    <a href="http://localhost:4000" class="btn-secondary" target="_blank">Open Mainnet Explorer</a>
-                    <a href="http://localhost:4001" class="btn-secondary" target="_blank">Open Testnet Explorer</a>
-                </div>
-            </div>
-        </section>
-
-        <section id="network-info" class="info-section">
-            <div class="container">
-                <h2>Network Information</h2>
-                <div class="network-tabs">
-                    <button class="tab-button active" onclick="showNetwork('mainnet')">Mainnet</button>
-                    <button class="tab-button" onclick="showNetwork('testnet')">Testnet</button>
-                </div>
-                
-                <div id="mainnet-info" class="network-content active">
-                    <div class="network-grid">
-                        <div class="network-card">
-                            <h3>Chain ID</h3>
-                            <p>7878</p>
-                        </div>
-                        <div class="network-card">
-                            <h3>Currency</h3>
-                            <p>AFRO</p>
-                        </div>
-                        <div class="network-card">
-                            <h3>RPC URL</h3>
-                            <p>http://localhost:8545</p>
-                        </div>
-                        <div class="network-card">
-                            <h3>Explorer</h3>
-                            <p><a href="http://localhost:4000" target="_blank">localhost:4000</a></p>
-                        </div>
+        <!-- Hero Section -->
+        <section id="home" class="hero-section">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1 class="hero-title">
+                        The Future of <span class="gradient-text">Mobile Money</span> 
+                        <br>on Blockchain
+                    </h1>
+                    <p class="hero-subtitle">
+                        Afro Network bridges traditional mobile money with decentralized finance, 
+                        enabling secure, fast, and accessible blockchain transactions for everyone.
+                    </p>
+                    <div class="hero-buttons">
+                        <button onclick="addToMetaMask('mainnet')" class="btn btn-primary">
+                            <span>Add to MetaMask</span>
+                        </button>
+                        <a href="http://localhost:4000" class="btn btn-secondary" target="_blank">
+                            <span>Explore Network</span>
+                        </a>
                     </div>
                 </div>
-                
-                <div id="testnet-info" class="network-content">
-                    <div class="network-grid">
-                        <div class="network-card">
-                            <h3>Chain ID</h3>
-                            <p>7879</p>
-                        </div>
-                        <div class="network-card">
-                            <h3>Currency</h3>
-                            <p>tAFRO</p>
-                        </div>
-                        <div class="network-card">
-                            <h3>RPC URL</h3>
-                            <p>http://localhost:8547</p>
-                        </div>
-                        <div class="network-card">
-                            <h3>Explorer</h3>
-                            <p><a href="http://localhost:4001" target="_blank">localhost:4001</a></p>
-                        </div>
+                <div class="hero-visual">
+                    <div class="network-animation">
+                        <div class="node"></div>
+                        <div class="node"></div>
+                        <div class="node"></div>
+                        <div class="connection"></div>
+                        <div class="connection"></div>
                     </div>
                 </div>
             </div>
         </section>
 
+        <!-- Features Section -->
+        <section id="features" class="features-section">
+            <div class="container">
+                <h2 class="section-title">Built for the Mobile-First World</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📱</div>
+                        <h3>Mobile-First Design</h3>
+                        <p>Native integration with mobile money systems and SMS validation for seamless user experience.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🔐</div>
+                        <h3>Privacy-Preserving</h3>
+                        <p>Your addresses are private to you. Validators only see generation requests, not your wallet contents.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Fast & Secure</h3>
+                        <p>EVM-compatible network with optimized performance for mobile money transactions.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">🌍</div>
+                        <h3>Global Access</h3>
+                        <p>Bridging the gap between traditional finance and DeFi for emerging markets worldwide.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Network Stats -->
+        <section class="stats-section">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">7878</div>
+                        <div class="stat-label">Mainnet Chain ID</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">7879</div>
+                        <div class="stat-label">Testnet Chain ID</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">AFRO</div>
+                        <div class="stat-label">Native Currency</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">EVM</div>
+                        <div class="stat-label">Compatible</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Mobile Money Section -->
         <section id="mobile-money" class="mobile-money-section">
             <div class="container">
-                <h2>Mobile Money Integration</h2>
+                <div class="section-header">
+                    <h2 class="section-title">Revolutionary Address System</h2>
+                    <p class="section-subtitle">Generate blockchain addresses using your phone number with SMS validation</p>
+                </div>
+                
                 <div class="mobile-money-content">
-                    <div class="feature-card">
-                        <h3>🏦 Address Format</h3>
-                        <p><strong>New Format:</strong> <code>afro:[MSISDN]:[extra_characters]</code></p>
-                        <ul>
-                            <li><strong>MSISDN:</strong> Your phone number (e.g., 254700000000)</li>
-                            <li><strong>Extra Characters:</strong> 32 hex characters for protocol compatibility</li>
-                            <li><strong>Privacy:</strong> Only you know your public addresses</li>
-                            <li><strong>Multiple Addresses:</strong> Generate multiple addresses per phone number</li>
-                        </ul>
-                        <div class="example-box">
-                            <strong>Example:</strong><br>
-                            <code>afro:254700000000:a1b2c3d4e5f67890abcdef1234567890</code>
+                    <div class="address-demo">
+                        <div class="demo-card">
+                            <h3>Traditional Format</h3>
+                            <code class="address-example old">0xa1b2c3d4e5f67890abcdef1234567890abcdef12</code>
+                        </div>
+                        <div class="arrow">→</div>
+                        <div class="demo-card highlighted">
+                            <h3>Afro Format</h3>
+                            <code class="address-example new">afro:254700000000:a1b2c3d4e5f67890abcdef1234567890</code>
+                            <div class="address-breakdown">
+                                <span class="part-label">Protocol</span>
+                                <span class="part-label">Phone Number</span>
+                                <span class="part-label">Unique ID</span>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="feature-card">
-                        <h3>📱 SMS Validation</h3>
-                        <p>Each address generation includes SMS validation:</p>
-                        <ul>
-                            <li><strong>OTP Generation:</strong> 6-digit code from extra characters</li>
-                            <li><strong>SMS Delivery:</strong> Sent to your registered phone number</li>
-                            <li><strong>Validation Required:</strong> Confirm address ownership</li>
-                            <li><strong>Security:</strong> Prevents unauthorized address generation</li>
-                        </ul>
-                    </div>
-
-                    <div class="feature-card">
-                        <h3>🔐 Privacy Features</h3>
-                        <ul>
-                            <li><strong>Address Ownership:</strong> Only you know your addresses</li>
-                            <li><strong>Phone Linking:</strong> Addresses linked to your MSISDN</li>
-                            <li><strong>Multiple Generation:</strong> Create multiple addresses per phone</li>
-                            <li><strong>Validator Privacy:</strong> Validators only see generation requests</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="address-generation" class="generation-section">
-            <div class="container">
-                <h2>Address Generation System</h2>
-                <div class="generation-workflow">
-                    
-                    <div class="workflow-step">
-                        <div class="step-number">1</div>
-                        <div class="step-content">
-                            <h3>Request Generation</h3>
-                            <p>User requests new address generation with their MSISDN phone number</p>
-                            <code>Target: afro:[MSISDN]:[???]</code>
+                    <div class="features-list">
+                        <div class="feature-item">
+                            <div class="feature-icon-small">🔗</div>
+                            <div>
+                                <h4>Phone-Linked Addresses</h4>
+                                <p>Your phone number becomes part of your blockchain identity</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="workflow-step">
-                        <div class="step-number">2</div>
-                        <div class="step-content">
-                            <h3>Brute-Force Search</h3>
-                            <p>Validator performs computational search to find valid address:</p>
-                            <ul>
-                                <li>Generates random 32 hex characters</li>
-                                <li>Validates Ethereum address compatibility</li>
-                                <li>Ensures secp256k1 curve compliance</li>
-                                <li>Up to 1,000,000 attempts per generation</li>
-                            </ul>
+                        <div class="feature-item">
+                            <div class="feature-icon-small">📲</div>
+                            <div>
+                                <h4>SMS Validation</h4>
+                                <p>Secure address generation with OTP verification</p>
+                            </div>
                         </div>
-                    </div>
-
-                    <div class="workflow-step">
-                        <div class="step-number">3</div>
-                        <div class="step-content">
-                            <h3>SMS Validation</h3>
-                            <p>Once valid address found, SMS validation is triggered:</p>
-                            <ul>
-                                <li>Extract OTP from extra characters (SHA256 + 6 digits)</li>
-                                <li>Send SMS to user's phone number</li>
-                                <li>Include both OTP and extra characters</li>
-                                <li>User confirms ownership</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="workflow-step">
-                        <div class="step-number">4</div>
-                        <div class="step-content">
-                            <h3>Address Delivery</h3>
-                            <p>Validated address is delivered to user:</p>
-                            <ul>
-                                <li>Full address: <code>afro:[MSISDN]:[extra_chars]</code></li>
-                                <li>Protocol compatible: <code>0x[extra_chars]</code></li>
-                                <li>Ready for blockchain operations</li>
-                                <li>Private to user only</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="technical-specs">
-                    <h3>Technical Specifications</h3>
-                    <div class="specs-grid">
-                        <div class="spec-card">
-                            <h4>🔢 Algorithm</h4>
-                            <ul>
-                                <li><strong>Method:</strong> Brute-force search</li>
-                                <li><strong>Max Attempts:</strong> 1,000,000</li>
-                                <li><strong>Character Set:</strong> Hexadecimal (0-9, a-f)</li>
-                                <li><strong>Length:</strong> 32 characters (16 bytes)</li>
-                            </ul>
-                        </div>
-
-                        <div class="spec-card">
-                            <h4>📞 SMS Integration</h4>
-                            <ul>
-                                <li><strong>API Endpoint:</strong> http://localhost:3001/sms</li>
-                                <li><strong>Timeout:</strong> 30 seconds</li>
-                                <li><strong>OTP Length:</strong> 6 digits</li>
-                                <li><strong>Hash Function:</strong> SHA256</li>
-                            </ul>
-                        </div>
-
-                        <div class="spec-card">
-                            <h4>🌐 Validator Network</h4>
-                            <ul>
-                                <li><strong>Phone Registry:</strong> Peer-to-peer sharing</li>
-                                <li><strong>Validation:</strong> Cross-validator verification</li>
-                                <li><strong>Privacy:</strong> Phone numbers shared among validators</li>
-                                <li><strong>Redundancy:</strong> Multiple validator SMS capability</li>
-                            </ul>
-                        </div>
-
-                        <div class="spec-card">
-                            <h4>🔐 Security Features</h4>
-                            <ul>
-                                <li><strong>Curve Compatibility:</strong> secp256k1 validated</li>
-                                <li><strong>Address Privacy:</strong> User-only knowledge</li>
-                                <li><strong>SMS Verification:</strong> Phone ownership proof</li>
-                                <li><strong>Multiple Addresses:</strong> Enhanced privacy</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="implementation-details">
-                    <h3>Implementation Details</h3>
-                    <div class="code-examples">
-                        <div class="code-example">
-                            <h4>Address Generation Process</h4>
-                            <pre><code>#!/bin/bash
-# Generate address for MSISDN
-generate_afro_address() {
-    local msisdn=$1
-    local prefix="afro:${msisdn}:"
-    local max_attempts=1000000
-    
-    while [ $attempt -lt $max_attempts ]; do
-        extra_chars=$(openssl rand -hex 16)
-        candidate_address="${prefix}${extra_chars}"
-        eth_address="0x${extra_chars}"
-        
-        if geth account validate-address "$eth_address"; then
-            send_sms_validation "$msisdn" "$extra_chars"
-            echo "$candidate_address"
-            return 0
-        fi
-        
-        attempt=$((attempt + 1))
-    done
-}</code></pre>
-                        </div>
-
-                        <div class="code-example">
-                            <h4>SMS Validation Function</h4>
-                            <pre><code>#!/bin/bash
-send_sms_validation() {
-    local phone_number=$1
-    local validation_code=$2
-    local otp=$(echo -n "$validation_code" | sha256sum | cut -c1-6)
-    
-    curl -X POST "$AFRO_SMS_API_URL" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"to\": \"${phone_number}\",
-            \"message\": \"Your Afro address validation code: ${otp}\",
-            \"type\": \"address_validation\"
-        }"
-}</code></pre>
+                        <div class="feature-item">
+                            <div class="feature-icon-small">🔒</div>
+                            <div>
+                                <h4>Multiple Addresses</h4>
+                                <p>Generate multiple addresses per phone for enhanced privacy</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="docs" class="docs-section">
+        <!-- Developers Section -->
+        <section id="developers" class="developers-section">
             <div class="container">
-                <h2>Documentation</h2>
-                <div class="docs-grid">
-                    <div class="doc-card">
+                <h2 class="section-title">Start Building Today</h2>
+                <div class="dev-grid">
+                    <div class="dev-card">
                         <h3>Quick Start</h3>
-                        <p>Get started with Afro Network in minutes</p>
-                        <ul>
-                            <li>Add testnet to MetaMask</li>
-                            <li>Visit our <a href="faucet.html">testnet faucet</a></li>
-                            <li>Get free test AFRO tokens</li>
-                            <li>Deploy your first contract</li>
-                        </ul>
+                        <div class="code-block">
+                            <pre><code># Add Afro Testnet to MetaMask
+Chain ID: 7879
+RPC: http://localhost:8547
+Currency: tAFRO</code></pre>
+                        </div>
+                        <a href="faucet.html" class="dev-link">Get Test Tokens →</a>
                     </div>
-                    <div class="doc-card">
-                        <h3>Testnet Faucet</h3>
-                        <p>Get free test tokens for development:</p>
-                        <ul>
-                            <li><strong>Visit:</strong> <a href="faucet.html">Afro Testnet Faucet</a></li>
-                            <li><strong>Amount:</strong> 10 tAFRO per request</li>
-                            <li><strong>Cooldown:</strong> 24 hours per address</li>
-                            <li><strong>Network:</strong> Afro Testnet (Chain ID: 7879)</li>
-                            <li>Connect MetaMask or enter address manually</li>
-                        </ul>
+                    <div class="dev-card">
+                        <h3>Network Endpoints</h3>
+                        <div class="endpoint-list">
+                            <div class="endpoint">
+                                <span class="method">HTTP</span>
+                                <span class="url">localhost:8545</span>
+                            </div>
+                            <div class="endpoint">
+                                <span class="method">WSS</span>
+                                <span class="url">localhost:8546</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="doc-card">
-                        <h3>MetaMask Setup</h3>
-                        <p>Configure MetaMask for Afro Networks:</p>
-                        <ul>
-                            <li><strong>Mainnet:</strong> Chain ID 7878, RPC: localhost:8545</li>
-                            <li><strong>Testnet:</strong> Chain ID 7879, RPC: localhost:8547</li>
-                            <li><strong>Currency:</strong> AFRO (mainnet), tAFRO (testnet)</li>
-                            <li><strong>Explorers:</strong> localhost:4000, localhost:4001</li>
-                        </ul>
-                    </div>
-                    <div class="doc-card">
-                        <h3>Development Workflow</h3>
-                        <p>Recommended development process:</p>
-                        <ul>
-                            <li>Start with Afro Testnet for development</li>
-                            <li>Get test tokens from the faucet</li>
-                            <li>Deploy and test smart contracts</li>
-                            <li>Move to mainnet when ready</li>
-                        </ul>
-                    </div>
-                    <div class="doc-card">
-                        <h3>Address Format</h3>
-                        <p>Afro Network uses a unique address format:</p>
-                        <ul>
-                            <li><strong>Display:</strong> afro:abcd1234...</li>
-                            <li><strong>Compatible:</strong> 0xabcd1234... (for wallets)</li>
-                            <li>Automatically converted in explorer</li>
-                        </ul>
-                    </div>
-                    <div class="doc-card">
+                    <div class="dev-card">
                         <h3>Smart Contracts</h3>
-                        <p>Deploy and interact with smart contracts:</p>
-                        <ul>
-                            <li>Solidity compatible</li>
-                            <li>EVM-compatible execution</li>
-                            <li>Test on testnet first</li>
-                            <li>Gas optimization features</li>
+                        <ul class="feature-list">
+                            <li>Solidity Compatible</li>
+                            <li>EVM Execution</li>
+                            <li>Gas Optimization</li>
+                            <li>Mobile-First APIs</li>
                         </ul>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="rpc" class="rpc-section">
-            <div class="container">
-                <h2>RPC Endpoints</h2>
-                <div class="network-tabs">
-                    <button class="tab-button active" onclick="showRPC('mainnet')">Mainnet</button>
-                    <button class="tab-button" onclick="showRPC('testnet')">Testnet</button>
-                </div>
-                
-                <div id="mainnet-rpc" class="rpc-content active">
-                    <div class="rpc-info">
-                        <div class="rpc-card">
-                            <h3>HTTP RPC</h3>
-                            <code>http://localhost:8545</code>
-                            <p>Standard JSON-RPC over HTTP</p>
-                        </div>
-                        <div class="rpc-card">
-                            <h3>WebSocket RPC</h3>
-                            <code>ws://localhost:8546</code>
-                            <p>Real-time JSON-RPC over WebSocket</p>
-                        </div>
-                        <div class="rpc-card">
-                            <h3>Proxy RPC</h3>
-                            <code>http://localhost/rpc</code>
-                            <p>CORS-enabled proxy endpoint</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="testnet-rpc" class="rpc-content">
-                    <div class="rpc-info">
-                        <div class="rpc-card">
-                            <h3>HTTP RPC</h3>
-                            <code>http://localhost:8547</code>
-                            <p>Standard JSON-RPC over HTTP</p>
-                        </div>
-                        <div class="rpc-card">
-                            <h3>WebSocket RPC</h3>
-                            <code>ws://localhost:8548</code>
-                            <p>Real-time JSON-RPC over WebSocket</p>
-                        </div>
-                        <div class="rpc-card">
-                            <h3>Proxy RPC</h3>
-                            <code>http://localhost/rpc-testnet</code>
-                            <p>CORS-enabled proxy endpoint</p>
-                        </div>
                     </div>
                 </div>
             </div>
         </section>
     </main>
 
-    <footer>
+    <footer class="footer">
         <div class="container">
-            <p>&copy; 2024 Afro Network. Built with ❤️ for mobile money integration and decentralized future.</p>
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="images/afro-logo.png" alt="Afro Network" class="footer-logo">
+                    <span>Afro Network</span>
+                </div>
+                <p class="footer-text">
+                    © 2024 Afro Network. Building the future of mobile money on blockchain.
+                </p>
+            </div>
         </div>
     </footer>
 
