@@ -1,10 +1,12 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NetworkStats from "@/components/NetworkStats";
 import AddressGenerationStats from "@/components/AddressGenerationStats";
 import ValidatorNodeInfo from "@/components/ValidatorNodeInfo";
-import { Activity, Network, Phone, Server } from "lucide-react";
+import { Activity, Network, Phone, Server, Terminal } from "lucide-react";
 import DarkModeSwitch from "@/components/DarkModeSwitch";
++import DockerCLI from "@/components/DockerCLI";
 
 const Index = () => {
   return (
@@ -24,7 +26,7 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="network" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="network" className="flex items-center gap-2">
               <Network className="h-4 w-4" />
               Network
@@ -41,6 +43,10 @@ const Index = () => {
               <Activity className="h-4 w-4" />
               Logs
             </TabsTrigger>
++            <TabsTrigger value="cli" className="flex items-center gap-2">
++              <Terminal className="h-4 w-4" />
++              CLI
++            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="network" className="space-y-6">
@@ -93,6 +99,20 @@ const Index = () => {
               </CardContent>
             </Card>
           </TabsContent>
++
++         <TabsContent value="cli" className="space-y-6">
++           <Card>
++             <CardHeader>
++               <CardTitle>Docker CLI</CardTitle>
++               <CardDescription>Control the Afro Docker stack directly from your dashboard.<br />
++                 <span className="text-xs text-muted-foreground">Only available in Linux AppImage mode.</span>
++               </CardDescription>
++             </CardHeader>
++             <CardContent>
++               <DockerCLI />
++             </CardContent>
++           </Card>
++         </TabsContent>
         </Tabs>
       </div>
     </div>
