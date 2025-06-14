@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # AppImage builder for Afro Network
@@ -37,8 +38,42 @@ install_dependencies() {
     fi
 }
 
+ensure_node_v18() {
+    echo "🔍 Checking Node.js version..."
+    
+    # Get current Node.js version
+    if command -v node &> /dev/null; then
+        current_version=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+        echo "Current Node.js version: v$(node -v | cut -d'v' -f2)"
+        
+        if [ "$current_version" -lt 18 ]; then
+            echo "⚠️  Node.js v18+ required for crypto compatibility"
+            
+            # Try to use nvm to switch to Node 18
+            if command -v nvm &> /dev/null; then
+                echo "📦 Installing and using Node.js v18 via nvm..."
+                nvm install 18
+                nvm use 18
+                echo "✅ Switched to Node.js v$(node -v | cut -d'v' -f2)"
+            else
+                echo "❌ Node.js v18+ is required but not available. Please install Node.js v18 or higher."
+                echo "💡 You can install nvm and run: nvm install 18 && nvm use 18"
+                exit 1
+            fi
+        else
+            echo "✅ Node.js v18+ detected"
+        fi
+    else
+        echo "❌ Node.js not found. Please install Node.js v18 or higher."
+        exit 1
+    fi
+}
+
 build_appimage() {
     echo "🚀 Building Afro Network AppImage only..."
+    
+    # Ensure Node.js v18+ is being used
+    ensure_node_v18
     
     # Install dependencies first
     install_dependencies
@@ -139,11 +174,11 @@ EOF
     
     # Build the project first if dist doesn't exist
     if [ ! -d "dist" ]; then
-        echo "🔨 Building React application..."
+        echo "🔨 Building React application with Node.js v$(node -v | cut -d'v' -f2)..."
         
         build_success=false
         
-        # Strategy 1: Try with node polyfills plugin
+        # Strategy 1: Try with node polyfills plugin (using Node v18+)
         echo "📦 Attempting build with node polyfills..."
         if command -v npm &> /dev/null; then
             # Create a temporary vite config that includes node polyfills
@@ -178,7 +213,7 @@ VITE_EOF
             # Try building with the temporary config
             if npx vite build --config vite.config.temp.ts; then
                 build_success=true
-                echo "✅ Build succeeded with node polyfills"
+                echo "✅ Build succeeded with node polyfills and Node.js v$(node -v | cut -d'v' -f2)"
             fi
             
             # Clean up temporary config
@@ -187,7 +222,7 @@ VITE_EOF
         
         # Strategy 2: Try normal build if polyfill didn't work or npm not present
         if [ "$build_success" = false ]; then
-            echo "📦 Attempting normal build..."
+            echo "📦 Attempting normal build with Node.js v$(node -v | cut -d'v' -f2)..."
             if command -v bun &> /dev/null; then
                 echo "Using bun to build..."
                 if bun run build; then
@@ -208,8 +243,9 @@ VITE_EOF
         
         # If all strategies failed, exit with error
         if [ "$build_success" = false ]; then
-            echo "❌ All build strategies failed. Please check your Node.js version and dependencies."
+            echo "❌ All build strategies failed with Node.js v$(node -v | cut -d'v' -f2)."
             echo "💡 Try running 'npm run build' manually to see the full error output."
+            echo "🔧 Ensure you're using Node.js v18+ for crypto compatibility."
             exit 1
         fi
     fi
@@ -230,6 +266,7 @@ VITE_EOF
         echo "   • Portable - runs on any Linux distribution"
         echo "   • No installation required"
         echo "   • Double-click to launch or run from terminal"
+        echo "   • Built with Node.js v$(node -v | cut -d'v' -f2)"
         echo ""
         echo "🚀 To use the AppImage:"
         echo "   1. Make it executable: chmod +x AfroNetwork.AppImage"
