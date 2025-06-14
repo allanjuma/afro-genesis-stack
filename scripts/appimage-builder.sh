@@ -5,6 +5,58 @@
 
 set -e
 
+install_fuse() {
+    echo "🔍 Checking FUSE installation..."
+    
+    # Check if FUSE is already installed
+    if ldconfig -p | grep -q libfuse.so.2; then
+        echo "✅ FUSE is already installed"
+        return 0
+    fi
+    
+    echo "📦 FUSE not found, installing..."
+    
+    # Detect package manager and install FUSE
+    if command -v apt-get &> /dev/null; then
+        echo "🔨 Installing FUSE with apt-get..."
+        sudo apt-get update
+        sudo apt-get install -y fuse libfuse2
+    elif command -v yum &> /dev/null; then
+        echo "🔨 Installing FUSE with yum..."
+        sudo yum install -y fuse fuse-libs
+    elif command -v dnf &> /dev/null; then
+        echo "🔨 Installing FUSE with dnf..."
+        sudo dnf install -y fuse fuse-libs
+    elif command -v pacman &> /dev/null; then
+        echo "🔨 Installing FUSE with pacman..."
+        sudo pacman -S --noconfirm fuse2
+    elif command -v zypper &> /dev/null; then
+        echo "🔨 Installing FUSE with zypper..."
+        sudo zypper install -y fuse libfuse2
+    else
+        echo "❌ Could not detect package manager to install FUSE"
+        echo "💡 Please install FUSE manually:"
+        echo "   • Ubuntu/Debian: sudo apt-get install fuse libfuse2"
+        echo "   • CentOS/RHEL: sudo yum install fuse fuse-libs"
+        echo "   • Fedora: sudo dnf install fuse fuse-libs"
+        echo "   • Arch: sudo pacman -S fuse2"
+        echo "   • openSUSE: sudo zypper install fuse libfuse2"
+        exit 1
+    fi
+    
+    # Verify installation
+    if ldconfig -p | grep -q libfuse.so.2; then
+        echo "✅ FUSE installed successfully"
+    else
+        echo "❌ FUSE installation failed or library not found"
+        echo "💡 You may need to:"
+        echo "   • Restart your session"
+        echo "   • Run: sudo ldconfig"
+        echo "   • Check if your user is in the 'fuse' group: sudo usermod -a -G fuse \$USER"
+        exit 1
+    fi
+}
+
 install_dependencies() {
     echo "📦 Installing dependencies..."
     
@@ -147,12 +199,15 @@ ensure_node_v18() {
 }
 
 build_appimage() {
-    echo "🚀 Building Afro Network AppImage only..."
+    echo "🚀 Building Afro Network AppImage..."
+    
+    # Install FUSE first
+    install_fuse
     
     # Ensure Node.js v18+ is being used
     ensure_node_v18
     
-    # Install dependencies first
+    # Install dependencies
     install_dependencies
     
     # Check if AppImageTool is available
