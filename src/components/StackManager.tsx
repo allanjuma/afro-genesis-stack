@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,18 +16,12 @@ import {
   Globe,
   Activity,
   GitPullRequest,
-  Wrench
+  Wrench,
+  Wifi,
+  WifiOff
 } from "lucide-react";
-import { stackAPI, type StackOperation, type GitOperation } from "@/services/stackAPI";
+import { ipcAPI, type StackStatus } from "@/services/ipcAPI";
 import { toast } from "sonner";
-
-interface StackStatus {
-  mainnet: boolean;
-  testnet: boolean;
-  explorer: boolean;
-  website: boolean;
-  ceo: boolean;
-}
 
 interface OperationMode {
   id: string;
@@ -43,7 +36,8 @@ const StackManager = () => {
     testnet: false,
     explorer: false,
     website: false,
-    ceo: false
+    ceo: false,
+    connected: false
   });
   
   const [selectedMode, setSelectedMode] = useState<string>('production');
@@ -82,61 +76,76 @@ const StackManager = () => {
     }
   ];
 
-  // Load stack status on component mount
+  // Load stack status on component mount and check IPC connection
   useEffect(() => {
-    loadStackStatus();
+    initializeConnection();
   }, []);
 
-  const loadStackStatus = async () => {
+  const initializeConnection = async () => {
     try {
-      const status = await stackAPI.getStackStatus();
-      setStackStatus(status);
+      const connected = await ipcAPI.checkConnection();
+      console.log('IPC connection status:', connected);
+      
+      if (connected) {
+        await loadStackStatus();
+      } else {
+        setStackStatus(prev => ({ ...prev, connected: false }));
+        toast.error('IPC connection failed - running in demo mode');
+      }
     } catch (error) {
-      console.error('Failed to load stack status:', error);
-      toast.error('Failed to load stack status');
+      console.error('Failed to initialize IPC connection:', error);
+      setStackStatus(prev => ({ ...prev, connected: false }));
     }
   };
 
-  const executeStackOperation = async (operation: 'start' | 'stop' | 'restart', mode?: string) => {
+  const loadStackStatus = async () => {
+    try {
+      console.log('Loading stack status via IPC...');
+      const status = await ipcAPI.getStackStatus();
+      setStackStatus(status);
+      console.log('Stack status loaded:', status);
+    } catch (error) {
+      console.error('Failed to load stack status:', error);
+      toast.error('Failed to load stack status');
+      setStackStatus(prev => ({ ...prev, connected: false }));
+    }
+  };
+
+  const executeStackOperation = async (operation: 'start' | 'stop' | 'restart') => {
+    if (!stackStatus.connected) {
+      toast.error('IPC not connected - cannot execute operation');
+      return;
+    }
+
     setIsOperating(true);
     
     try {
-      const operationMode = mode || selectedMode;
-      const services = operationModes.find(m => m.id === operationMode)?.services || [];
+      const mode = operationModes.find(m => m.id === selectedMode);
+      const services = mode?.services || [];
       
-      const stackOperation: StackOperation = {
-        operation,
-        mode: operationMode,
-        services
-      };
+      console.log(`Executing ${operation} operation with services:`, services);
+      
+      let result;
+      switch (operation) {
+        case 'start':
+          result = await ipcAPI.startStack(services);
+          break;
+        case 'stop':
+          result = await ipcAPI.stopStack(services);
+          break;
+        case 'restart':
+          result = await ipcAPI.restartStack(services);
+          break;
+        default:
+          throw new Error(`Unknown operation: ${operation}`);
+      }
 
-      const result = await stackAPI.executeStackOperation(stackOperation);
-      
       if (result.success) {
-        // Update stack status based on operation
-        if (operation === 'start') {
-          const mode = operationModes.find(m => m.id === selectedMode);
-          if (mode) {
-            setStackStatus({
-              mainnet: mode.services.includes('afro-validator'),
-              testnet: mode.services.includes('afro-testnet-validator'),
-              explorer: mode.services.includes('afro-explorer') || mode.services.includes('afro-testnet-explorer'),
-              website: mode.services.includes('afro-web'),
-              ceo: mode.services.includes('ceo')
-            });
-          }
-        } else if (operation === 'stop') {
-          setStackStatus({
-            mainnet: false,
-            testnet: false,
-            explorer: false,
-            website: false,
-            ceo: false
-          });
-        }
-        
+        console.log(`${operation} operation completed successfully`);
         // Reload status after a delay
-        setTimeout(loadStackStatus, 2000);
+        setTimeout(loadStackStatus, 3000);
+      } else {
+        console.error(`${operation} operation failed:`, result.message);
       }
       
     } catch (error) {
@@ -147,19 +156,38 @@ const StackManager = () => {
     }
   };
 
-  const executeGitOperation = async (operation: 'clone' | 'pull' | 'build') => {
+  const executeGitOperation = async (operation: 'pull' | 'build') => {
+    if (!stackStatus.connected) {
+      toast.error('IPC not connected - cannot execute operation');
+      return;
+    }
+
     setIsOperating(true);
     
     try {
-      const gitOperation: GitOperation = { operation };
-      const result = await stackAPI.executeGitOperation(gitOperation);
+      console.log(`Executing git operation: ${operation}`);
       
+      let result;
+      switch (operation) {
+        case 'pull':
+          result = await ipcAPI.pullUpdates();
+          break;
+        case 'build':
+          result = await ipcAPI.buildContainers();
+          break;
+        default:
+          throw new Error(`Unknown git operation: ${operation}`);
+      }
+
       if (result.success) {
         console.log(`Git operation ${operation} completed successfully`);
+      } else {
+        console.error(`Git operation ${operation} failed:`, result.message);
       }
       
     } catch (error) {
       console.error(`Git operation ${operation} failed:`, error);
+      toast.error(`Git operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsOperating(false);
     }
@@ -173,8 +201,62 @@ const StackManager = () => {
     );
   };
 
+  const getConnectionBadge = () => {
+    return (
+      <div className="flex items-center gap-2">
+        {stackStatus.connected ? (
+          <>
+            <Wifi className="h-4 w-4 text-green-500" />
+            <Badge variant="default" className="bg-green-500">Connected</Badge>
+          </>
+        ) : (
+          <>
+            <WifiOff className="h-4 w-4 text-red-500" />
+            <Badge variant="destructive">Disconnected</Badge>
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
+      {/* IPC Connection Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            IPC Connection Status
+          </CardTitle>
+          <CardDescription>
+            Inter-Process Communication status for Docker container management
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm">Connection Status</span>
+            {getConnectionBadge()}
+          </div>
+          
+          <Button 
+            variant="outline"
+            onClick={initializeConnection}
+            disabled={isOperating}
+            className="flex items-center gap-2"
+          >
+            <Activity className="h-4 w-4" />
+            {isOperating ? 'Checking...' : 'Check Connection'}
+          </Button>
+          
+          {!stackStatus.connected && (
+            <div className="text-sm text-muted-foreground bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+              <p>⚠️ IPC connection not available. Running in demo mode.</p>
+              <p>To enable full functionality, ensure the Afro Network backend is running.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Operation Mode Selection */}
       <Card>
         <CardHeader>
@@ -210,14 +292,14 @@ const StackManager = () => {
             Stack Control
           </CardTitle>
           <CardDescription>
-            Start, stop, and restart the Afro Network stack
+            Start, stop, and restart the Afro Network stack via IPC
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2 flex-wrap">
             <Button 
               onClick={() => executeStackOperation('start')}
-              disabled={isOperating}
+              disabled={isOperating || !stackStatus.connected}
               className="flex items-center gap-2"
             >
               <Play className="h-4 w-4" />
@@ -226,7 +308,7 @@ const StackManager = () => {
             <Button 
               variant="destructive"
               onClick={() => executeStackOperation('stop')}
-              disabled={isOperating}
+              disabled={isOperating || !stackStatus.connected}
               className="flex items-center gap-2"
             >
               <Square className="h-4 w-4" />
@@ -235,7 +317,7 @@ const StackManager = () => {
             <Button 
               variant="outline"
               onClick={() => executeStackOperation('restart')}
-              disabled={isOperating}
+              disabled={isOperating || !stackStatus.connected}
               className="flex items-center gap-2"
             >
               <RotateCcw className="h-4 w-4" />
@@ -288,24 +370,15 @@ const StackManager = () => {
             Repository Management
           </CardTitle>
           <CardDescription>
-            Clone, update, and build the Afro Network codebase
+            Update and build the Afro Network codebase via IPC
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2 flex-wrap">
             <Button 
               variant="outline"
-              onClick={() => executeGitOperation('clone')}
-              disabled={isOperating}
-              className="flex items-center gap-2"
-            >
-              <Download className="h-4 w-4" />
-              {isOperating ? 'Cloning...' : 'Clone Repository'}
-            </Button>
-            <Button 
-              variant="outline"
               onClick={() => executeGitOperation('pull')}
-              disabled={isOperating}
+              disabled={isOperating || !stackStatus.connected}
               className="flex items-center gap-2"
             >
               <Upload className="h-4 w-4" />
@@ -313,7 +386,7 @@ const StackManager = () => {
             </Button>
             <Button 
               onClick={() => executeGitOperation('build')}
-              disabled={isOperating}
+              disabled={isOperating || !stackStatus.connected}
               className="flex items-center gap-2"
             >
               <Wrench className="h-4 w-4" />
@@ -322,9 +395,9 @@ const StackManager = () => {
           </div>
           
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>• Clone: Download the latest Afro Network source code</p>
             <p>• Pull: Update existing repository with latest changes</p>
             <p>• Build: Compile and create Docker containers from source</p>
+            {!stackStatus.connected && <p>• IPC connection required for operations</p>}
           </div>
         </CardContent>
       </Card>
