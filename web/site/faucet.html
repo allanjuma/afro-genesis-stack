@@ -1,0 +1,105 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afro Testnet Faucet - Get Test AFRO Tokens</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="images/afro-logo.png">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="container">
+                <div class="logo">
+                    <img src="images/afro-logo.png" alt="Afro Network" height="40">
+                    <span>Afro Network</span>
+                </div>
+                <ul>
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="index.html#docs">Documentation</a></li>
+                    <li><a href="http://localhost:4000" target="_blank">Explorer</a></li>
+                    <li><a href="faucet.html" class="active">Faucet</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section class="faucet-section">
+            <div class="container">
+                <h1>Afro Testnet Faucet</h1>
+                <p>Get free test AFRO tokens for development and testing on the Afro Testnet</p>
+                
+                <div class="faucet-container">
+                    <div class="faucet-card">
+                        <h2>Request Test Tokens</h2>
+                        <p>Enter your wallet address to receive 10 tAFRO tokens</p>
+                        
+                        <div class="faucet-form">
+                            <div class="input-group">
+                                <label for="walletAddress">Wallet Address</label>
+                                <input 
+                                    type="text" 
+                                    id="walletAddress" 
+                                    placeholder="0x... or afro:..." 
+                                    class="address-input"
+                                >
+                                <button onclick="connectMetaMask()" class="btn-secondary">Connect MetaMask</button>
+                            </div>
+                            
+                            <button onclick="requestTokens()" class="btn-primary" id="requestBtn">
+                                Request 10 tAFRO
+                            </button>
+                        </div>
+                        
+                        <div id="faucetStatus" class="status-message"></div>
+                    </div>
+                    
+                    <div class="faucet-info">
+                        <h3>Faucet Information</h3>
+                        <ul>
+                            <li><strong>Network:</strong> Afro Testnet</li>
+                            <li><strong>Chain ID:</strong> 7879</li>
+                            <li><strong>Token Amount:</strong> 10 tAFRO per request</li>
+                            <li><strong>Cooldown:</strong> 24 hours per address</li>
+                            <li><strong>Rate Limit:</strong> 1 request per minute</li>
+                        </ul>
+                        
+                        <h3>Setup Instructions</h3>
+                        <ol>
+                            <li>Add Afro Testnet to MetaMask</li>
+                            <li>Enter your wallet address above</li>
+                            <li>Click "Request 10 tAFRO"</li>
+                            <li>Wait for transaction confirmation</li>
+                        </ol>
+                        
+                        <div class="network-add-button">
+                            <button onclick="addToMetaMask('testnet')" class="btn-secondary">
+                                Add Testnet to MetaMask
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recent-requests">
+                    <h3>Recent Requests</h3>
+                    <div id="recentRequests" class="request-list">
+                        <!-- Recent requests will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Afro Network. Built with ❤️ for the decentralized future.</p>
+        </div>
+    </footer>
+
+    <script src="scripts.js"></script>
+    <script src="faucet.js"></script>
+</body>
+</html>
