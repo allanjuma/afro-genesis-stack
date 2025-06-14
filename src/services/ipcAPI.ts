@@ -19,23 +19,25 @@ export interface StackStatus {
 
 class IPCAPIService {
   private isConnected = false;
+  private baseUrl = '';
 
   async checkConnection(): Promise<boolean> {
     try {
-      // Check if we're running in an Electron environment with IPC
-      if (typeof window !== 'undefined' && (window as any).electronAPI) {
-        this.isConnected = true;
-        return true;
-      }
+      console.log('Checking IPC connection...');
       
-      // Fallback: try to reach a local health endpoint
-      const response = await fetch('http://localhost:3000/health', {
+      // Try to reach the CEO API service which should be available
+      const response = await fetch('/api/ceo/health', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
       
-      this.isConnected = response.ok;
-      return this.isConnected;
+      if (response.ok) {
+        this.isConnected = true;
+        console.log('IPC connection established via CEO API');
+        return true;
+      }
+      
+      throw new Error(`Health check failed: ${response.status}`);
     } catch (error) {
       console.log('IPC connection check failed:', error);
       this.isConnected = false;
@@ -45,24 +47,17 @@ class IPCAPIService {
 
   async executeDockerCommand(command: string): Promise<IPCResponse> {
     try {
-      console.log(`Executing Docker command: ${command}`);
+      console.log(`Executing Docker command via IPC: ${command}`);
       
       if (!this.isConnected) {
         await this.checkConnection();
       }
 
-      // If we have Electron IPC, use it
-      if (typeof window !== 'undefined' && (window as any).electronAPI) {
-        const result = await (window as any).electronAPI.executeCommand(command);
-        return {
-          success: result.success,
-          message: result.message || 'Command executed',
-          data: result.data
-        };
+      if (!this.isConnected) {
+        throw new Error('IPC connection not available');
       }
 
-      // Fallback to local API
-      const response = await fetch('http://localhost:3000/api/docker/execute', {
+      const response = await fetch('/api/ceo/docker-execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command })
@@ -73,7 +68,13 @@ class IPCAPIService {
       }
 
       const result = await response.json();
-      return result;
+      
+      return {
+        success: result.success || false,
+        message: result.message || 'Command executed',
+        data: result.output || result.data,
+        error: result.error
+      };
     } catch (error) {
       console.error('Docker command execution failed:', error);
       return {
@@ -91,13 +92,24 @@ class IPCAPIService {
       const result = await this.executeDockerCommand('docker ps --format "{{.Names}}\t{{.Status}}" --filter "name=afro"');
       
       if (!result.success) {
-        console.log('Docker ps command failed, assuming containers are stopped');
+        console.log('Docker ps command failed, checking individual containers...');
+        
+        // Fallback: try to check individual containers
+        const containers = ['afro-validator', 'afro-testnet-validator', 'afro-explorer', 'afro-testnet-explorer', 'afro-web', 'afro-ceo'];
+        const statuses = await Promise.all(
+          containers.map(async (container) => {
+            const cmd = `docker ps --format "{{.Names}}\t{{.Status}}" --filter "name=${container}"`;
+            const res = await this.executeDockerCommand(cmd);
+            return { container, running: res.success && res.data && res.data.includes('Up') };
+          })
+        );
+        
         return {
-          mainnet: false,
-          testnet: false,
-          explorer: false,
-          website: false,
-          ceo: false,
+          mainnet: statuses.find(s => s.container === 'afro-validator')?.running || false,
+          testnet: statuses.find(s => s.container === 'afro-testnet-validator')?.running || false,
+          explorer: statuses.some(s => (s.container.includes('explorer')) && s.running),
+          website: statuses.find(s => s.container === 'afro-web')?.running || false,
+          ceo: statuses.find(s => s.container === 'afro-ceo')?.running || false,
           connected: this.isConnected
         };
       }

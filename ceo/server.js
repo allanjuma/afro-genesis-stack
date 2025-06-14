@@ -1,4 +1,3 @@
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -496,6 +495,62 @@ cron.schedule('*/5 * * * *', async () => {
     }
   } catch (error) {
     console.error('Scheduled monitoring error:', error.message);
+  }
+});
+
+// Health check endpoint for IPC
+app.get('/api/ceo/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'CEO API is running',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Docker command execution endpoint
+app.post('/api/ceo/docker-execute', async (req, res) => {
+  const { command } = req.body;
+  
+  if (!command) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Command is required' 
+    });
+  }
+
+  try {
+    console.log(`Executing Docker command: ${command}`);
+    
+    const result = await new Promise((resolve, reject) => {
+      exec(command, { cwd: '/usr/src/app' }, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Command failed: ${error.message}`);
+          resolve({
+            success: false,
+            message: error.message,
+            output: stderr || stdout,
+            exitCode: error.code
+          });
+        } else {
+          console.log(`Command succeeded: ${stdout}`);
+          resolve({
+            success: true,
+            message: 'Command executed successfully',
+            output: stdout,
+            exitCode: 0
+          });
+        }
+      });
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Docker command execution error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Internal server error',
+      error: error.message
+    });
   }
 });
 
