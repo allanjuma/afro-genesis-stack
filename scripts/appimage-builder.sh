@@ -19,8 +19,22 @@ install_fuse() {
     # Detect package manager and install FUSE
     if command -v apt-get &> /dev/null; then
         echo "🔨 Installing FUSE with apt-get..."
-        sudo apt-get update
-        sudo apt-get install -y fuse libfuse2
+        
+        # Try to update package lists, but don't fail if some repositories are broken
+        echo "📋 Updating package lists..."
+        if ! sudo apt-get update 2>/dev/null; then
+            echo "⚠️  Some repository updates failed, but continuing with FUSE installation..."
+            echo "💡 You may want to clean up your repository configuration later"
+        fi
+        
+        # Install FUSE packages
+        if sudo apt-get install -y fuse libfuse2; then
+            echo "✅ FUSE packages installed successfully"
+        else
+            echo "❌ Failed to install FUSE packages via apt-get"
+            echo "💡 Try running manually: sudo apt-get install fuse libfuse2"
+            exit 1
+        fi
     elif command -v yum &> /dev/null; then
         echo "🔨 Installing FUSE with yum..."
         sudo yum install -y fuse fuse-libs
@@ -53,6 +67,9 @@ install_fuse() {
         echo "   • Restart your session"
         echo "   • Run: sudo ldconfig"
         echo "   • Check if your user is in the 'fuse' group: sudo usermod -a -G fuse \$USER"
+        echo "   • If the PostgreSQL repository error persists, you can remove it with:"
+        echo "     sudo rm /etc/apt/sources.list.d/pgdg.list"
+        echo "     sudo apt-get update"
         exit 1
     fi
 }
