@@ -16,6 +16,7 @@ export interface StackResponse {
   message: string;
   services?: string[];
   logs?: string[];
+  output?: string;
 }
 
 class StackAPIService {
@@ -23,8 +24,8 @@ class StackAPIService {
 
   async executeStackOperation(operation: StackOperation): Promise<StackResponse> {
     try {
-      // Since we're in an AppImage environment, we need to use the CEO service
-      // which can execute Docker commands through the container network
+      console.log(`Executing stack operation: ${operation.operation} with services:`, operation.services);
+      
       const response = await fetch('/api/ceo/stack-operation', {
         method: 'POST',
         headers: {
@@ -41,8 +42,12 @@ class StackAPIService {
       
       if (result.success) {
         toast.success(`Stack ${operation.operation} completed successfully`);
+        if (result.logs && result.logs.length > 0) {
+          console.log('Operation logs:', result.logs);
+        }
       } else {
         toast.error(`Stack ${operation.operation} failed: ${result.message}`);
+        console.error('Operation failed:', result.message);
       }
 
       return result;
@@ -59,6 +64,8 @@ class StackAPIService {
 
   async executeGitOperation(operation: GitOperation): Promise<StackResponse> {
     try {
+      console.log(`Executing git operation: ${operation.operation}`);
+      
       const response = await fetch('/api/ceo/git-operation', {
         method: 'POST',
         headers: {
@@ -75,8 +82,12 @@ class StackAPIService {
       
       if (result.success) {
         toast.success(`Git ${operation.operation} completed successfully`);
+        if (result.logs && result.logs.length > 0) {
+          console.log('Git operation logs:', result.logs);
+        }
       } else {
         toast.error(`Git ${operation.operation} failed: ${result.message}`);
+        console.error('Git operation failed:', result.message);
       }
 
       return result;
@@ -93,13 +104,17 @@ class StackAPIService {
 
   async getStackStatus(): Promise<any> {
     try {
+      console.log('Fetching stack status...');
+      
       const response = await fetch('/api/ceo/stack-status');
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      return await response.json();
+      const status = await response.json();
+      console.log('Stack status:', status);
+      return status;
     } catch (error) {
       console.error('Failed to get stack status:', error);
       return {

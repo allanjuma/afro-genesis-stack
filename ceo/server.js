@@ -108,12 +108,12 @@ const createGitHubIssue = async (title, body, labels = []) => {
 };
 
 // Docker operations
-const executeDockerCommand = async (command) => {
+const executeDockerCommand = async (command, workingDir = '/app') => {
   try {
-    console.log(`Executing Docker command: ${command}`);
-    const { stdout, stderr } = await execAsync(command);
+    console.log(`Executing Docker command: ${command} in ${workingDir}`);
+    const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
     
-    if (stderr && !stderr.includes('WARNING')) {
+    if (stderr && !stderr.includes('WARNING') && !stderr.includes('WARN')) {
       console.error('Docker command stderr:', stderr);
     }
     
@@ -133,10 +133,10 @@ const executeDockerCommand = async (command) => {
 };
 
 // Git operations
-const executeGitCommand = async (command) => {
+const executeGitCommand = async (command, workingDir = '/tmp') => {
   try {
-    console.log(`Executing Git command: ${command}`);
-    const { stdout, stderr } = await execAsync(command);
+    console.log(`Executing Git command: ${command} in ${workingDir}`);
+    const { stdout, stderr } = await execAsync(command, { cwd: workingDir });
     
     return {
       success: true,
@@ -231,9 +231,11 @@ const getNetworkStatus = async () => {
 // Get Docker stack status
 const getStackStatus = async () => {
   try {
-    const result = await executeDockerCommand('docker-compose ps --format json');
+    // First check if docker-compose file exists and get container status
+    const result = await executeDockerCommand('docker ps --format "table {{.Names}}\t{{.Status}}" --filter "name=afro"');
     
     if (!result.success) {
+      console.log('Docker ps command failed, assuming containers are stopped');
       return {
         mainnet: false,
         testnet: false,
@@ -243,21 +245,14 @@ const getStackStatus = async () => {
       };
     }
 
-    // Parse container status
-    const containers = result.output.split('\n').filter(line => line.trim()).map(line => {
-      try {
-        return JSON.parse(line);
-      } catch {
-        return null;
-      }
-    }).filter(Boolean);
-
+    const containerLines = result.output.split('\n').filter(line => line.trim() && !line.includes('NAMES'));
+    
     return {
-      mainnet: containers.some(c => c.Service === 'afro-validator' && c.State === 'running'),
-      testnet: containers.some(c => c.Service === 'afro-testnet-validator' && c.State === 'running'),
-      explorer: containers.some(c => (c.Service === 'afro-explorer' || c.Service === 'afro-testnet-explorer') && c.State === 'running'),
-      website: containers.some(c => c.Service === 'afro-web' && c.State === 'running'),
-      ceo: containers.some(c => c.Service === 'ceo' && c.State === 'running')
+      mainnet: containerLines.some(line => line.includes('afro-validator') && line.includes('Up')),
+      testnet: containerLines.some(line => line.includes('afro-testnet-validator') && line.includes('Up')),
+      explorer: containerLines.some(line => (line.includes('afro-explorer') || line.includes('afro-testnet-explorer')) && line.includes('Up')),
+      website: containerLines.some(line => line.includes('afro-web') && line.includes('Up')),
+      ceo: containerLines.some(line => line.includes('afro-ceo') && line.includes('Up'))
     };
   } catch (error) {
     console.error('Failed to get stack status:', error.message);
@@ -343,37 +338,40 @@ app.post('/api/ceo/stack-operation', async (req, res) => {
     console.log(`Stack operation: ${operation} with mode: ${mode} and services: ${services?.join(', ')}`);
 
     let command;
+    const dockerComposeFile = process.env.DOCKER_COMPOSE_FILE || '/app/docker-compose.yml';
+    
     switch (operation) {
       case 'start':
         if (services && services.length > 0) {
-          command = `docker-compose up -d ${services.join(' ')}`;
+          command = `docker-compose -f ${dockerComposeFile} up -d ${services.join(' ')}`;
         } else {
-          command = 'docker-compose up -d';
+          command = `docker-compose -f ${dockerComposeFile} up -d`;
         }
         break;
       case 'stop':
         if (services && services.length > 0) {
-          command = `docker-compose stop ${services.join(' ')}`;
+          command = `docker-compose -f ${dockerComposeFile} stop ${services.join(' ')}`;
         } else {
-          command = 'docker-compose down';
+          command = `docker-compose -f ${dockerComposeFile} down`;
         }
         break;
       case 'restart':
         if (services && services.length > 0) {
-          command = `docker-compose restart ${services.join(' ')}`;
+          command = `docker-compose -f ${dockerComposeFile} restart ${services.join(' ')}`;
         } else {
-          command = 'docker-compose restart';
+          command = `docker-compose -f ${dockerComposeFile} restart`;
         }
         break;
     }
 
-    const result = await executeDockerCommand(command);
+    const result = await executeDockerCommand(command, '/app');
     
     res.json({
       success: result.success,
       message: result.success ? `Stack ${operation} completed` : result.error,
       output: result.output,
-      services: services
+      services: services,
+      logs: result.output ? result.output.split('\n').filter(line => line.trim()) : []
     });
 
   } catch (error) {
@@ -400,24 +398,31 @@ app.post('/api/ceo/git-operation', async (req, res) => {
     console.log(`Git operation: ${operation}`);
 
     let command;
+    const repoDir = '/tmp/afro-blockchain';
+    
     switch (operation) {
       case 'clone':
-        command = 'git clone https://github.com/afro-network/afro-blockchain.git /tmp/afro-blockchain || true';
+        // Remove existing directory first
+        await executeGitCommand(`rm -rf ${repoDir}`);
+        command = `git clone https://github.com/afro-network/afro-blockchain.git ${repoDir}`;
         break;
       case 'pull':
-        command = 'cd /tmp/afro-blockchain && git pull origin main';
+        command = `cd ${repoDir} && git pull origin main`;
         break;
       case 'build':
-        command = 'docker-compose build --no-cache';
+        const dockerComposeFile = process.env.DOCKER_COMPOSE_FILE || '/app/docker-compose.yml';
+        command = `docker-compose -f ${dockerComposeFile} build --no-cache`;
         break;
     }
 
-    const result = await executeGitCommand(command);
+    const workingDir = operation === 'build' ? '/app' : '/tmp';
+    const result = await executeGitCommand(command, workingDir);
     
     res.json({
       success: result.success,
       message: result.success ? `Git ${operation} completed` : result.error,
-      output: result.output
+      output: result.output,
+      logs: result.output ? result.output.split('\n').filter(line => line.trim()) : []
     });
 
   } catch (error) {
