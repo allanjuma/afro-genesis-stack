@@ -142,26 +142,54 @@ EOF
     if [ ! -d "dist" ]; then
         echo "🔨 Building React application..."
         
-        # Set Node.js options to handle crypto issues
-        export NODE_OPTIONS="--openssl-legacy-provider"
+        # Try building without legacy provider first
+        build_success=false
         
-        # Build with appropriate package manager and handle crypto issues
+        # Build with appropriate package manager
         if command -v bun &> /dev/null; then
             echo "Using bun to build..."
-            bun run build
+            if bun run build; then
+                build_success=true
+            fi
         elif command -v npm &> /dev/null; then
             echo "Using npm to build..."
-            npm run build
+            if npm run build; then
+                build_success=true
+            fi
         elif command -v yarn &> /dev/null; then
             echo "Using yarn to build..."
-            yarn build
+            if yarn build; then
+                build_success=true
+            fi
         else
             echo "❌ No package manager found. Please install npm, yarn, or bun."
             exit 1
         fi
         
-        # Unset the Node options after build
-        unset NODE_OPTIONS
+        # If build failed, try with legacy OpenSSL support using direct node command
+        if [ "$build_success" = false ]; then
+            echo "⚠️  Build failed, trying with legacy OpenSSL support..."
+            
+            if command -v bun &> /dev/null; then
+                echo "Using bun with legacy OpenSSL..."
+                node --openssl-legacy-provider node_modules/.bin/vite build || {
+                    echo "❌ Build failed even with legacy OpenSSL support"
+                    exit 1
+                }
+            elif command -v npm &> /dev/null; then
+                echo "Using npm with legacy OpenSSL..."
+                node --openssl-legacy-provider node_modules/.bin/vite build || {
+                    echo "❌ Build failed even with legacy OpenSSL support"
+                    exit 1
+                }
+            elif command -v yarn &> /dev/null; then
+                echo "Using yarn with legacy OpenSSL..."
+                node --openssl-legacy-provider node_modules/.bin/yarn build || {
+                    echo "❌ Build failed even with legacy OpenSSL support"
+                    exit 1
+                }
+            fi
+        fi
     fi
     
     # Copy built React app
