@@ -1,7 +1,24 @@
+
 // Faucet functionality
 let isRequestInProgress = false;
 let lastRequestTime = 0;
 const RATE_LIMIT_MS = 60000; // 1 minute
+
+// Testnet configuration
+const TESTNET_CONFIG = {
+    chainId: '0x1EC7', // 7879 in hex
+    chainName: 'Afro Testnet',
+    nativeCurrency: {
+        name: 'Testnet Afro',
+        symbol: 'tAFRO',
+        decimals: 18
+    },
+    rpcUrls: ['http://localhost/rpc-testnet'],
+    blockExplorerUrls: ['http://localhost:4001']
+};
+
+// Faucet wallet private key (for demo purposes - in production this would be on backend)
+const FAUCET_PRIVATE_KEY = '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 async function connectMetaMask() {
     if (typeof window.ethereum !== 'undefined') {
@@ -10,12 +27,36 @@ async function connectMetaMask() {
             if (accounts.length > 0) {
                 document.getElementById('walletAddress').value = accounts[0];
                 showStatus('Wallet connected successfully!', 'success');
+                
+                // Check if user is on the correct network
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                if (chainId !== TESTNET_CONFIG.chainId) {
+                    showStatus('Please switch to Afro Testnet or click "Add Testnet to MetaMask"', 'warning');
+                }
             }
         } catch (error) {
             showStatus('Failed to connect wallet: ' + error.message, 'error');
         }
     } else {
         showStatus('MetaMask is not installed. Please install MetaMask to continue.', 'error');
+    }
+}
+
+async function addToMetaMask(network) {
+    if (typeof window.ethereum !== 'undefined') {
+        try {
+            if (network === 'testnet') {
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [TESTNET_CONFIG]
+                });
+                showStatus('Afro Testnet added to MetaMask successfully!', 'success');
+            }
+        } catch (error) {
+            showStatus('Failed to add network to MetaMask: ' + error.message, 'error');
+        }
+    } else {
+        showStatus('MetaMask is not installed.', 'error');
     }
 }
 
@@ -55,15 +96,10 @@ async function requestTokens() {
     requestBtn.textContent = 'Requesting...';
 
     try {
-        // Simulate faucet request (in a real implementation, this would call a backend service)
         showStatus('Sending request to faucet...', 'info');
         
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // For demo purposes, we'll simulate success
-        // In production, you'd call your faucet backend service here
-        const response = await simulateFaucetRequest(cleanAddress);
+        // Send the actual transaction
+        const response = await sendFaucetTransaction(cleanAddress);
         
         if (response.success) {
             showStatus(`Success! Sent 10 tAFRO to ${address}. Transaction hash: ${response.txHash}`, 'success');
@@ -81,26 +117,146 @@ async function requestTokens() {
     }
 }
 
-async function simulateFaucetRequest(address) {
-    // This is a simulation - in production, you'd implement actual faucet logic
-    // that interacts with your testnet validator to send tokens
-    
-    // Simulate random success/failure for demo
-    const success = Math.random() > 0.1; // 90% success rate
-    
-    if (success) {
-        const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random() * 16).toString(16)).join('');
+async function sendFaucetTransaction(toAddress) {
+    try {
+        // Create transaction data
+        const value = '0x8AC7230489E80000'; // 10 ETH in wei (hex)
+        const gasLimit = '0x5208'; // 21000 in hex
+        const gasPrice = await getGasPrice();
+        const nonce = await getNonce();
+
+        const transaction = {
+            to: toAddress,
+            value: value,
+            gas: gasLimit,
+            gasPrice: gasPrice,
+            nonce: nonce,
+            data: '0x'
+        };
+
+        // Sign and send transaction
+        const signedTx = await signTransaction(transaction);
+        const txHash = await sendRawTransaction(signedTx);
+
         return {
             success: true,
             txHash: txHash,
             amount: '10',
-            recipient: address
+            recipient: toAddress
         };
-    } else {
+    } catch (error) {
         return {
             success: false,
-            error: 'Daily limit exceeded for this address'
+            error: error.message
         };
+    }
+}
+
+async function getGasPrice() {
+    try {
+        const response = await fetch('/rpc-testnet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_gasPrice',
+                params: [],
+                id: 1
+            })
+        });
+        
+        const data = await response.json();
+        return data.result || '0x3B9ACA00'; // Default to 1 Gwei
+    } catch (error) {
+        return '0x3B9ACA00'; // Default to 1 Gwei
+    }
+}
+
+async function getNonce() {
+    try {
+        const faucetAddress = await getFaucetAddress();
+        const response = await fetch('/rpc-testnet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_getTransactionCount',
+                params: [faucetAddress, 'pending'],
+                id: 1
+            })
+        });
+        
+        const data = await response.json();
+        return data.result || '0x0';
+    } catch (error) {
+        return '0x0';
+    }
+}
+
+async function getFaucetAddress() {
+    // In a real implementation, this would derive the address from the private key
+    // For now, return a placeholder address
+    return '0x742d35Cc6634C0532925a3b8D40000000000000000';
+}
+
+async function signTransaction(transaction) {
+    // In a real implementation, this would use a proper signing library
+    // For demo purposes, we'll use a placeholder
+    // In production, this signing should happen on the backend for security
+    throw new Error('Transaction signing not implemented - this should be done on the backend');
+}
+
+async function sendRawTransaction(signedTx) {
+    const response = await fetch('/rpc-testnet', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            jsonrpc: '2.0',
+            method: 'eth_sendRawTransaction',
+            params: [signedTx],
+            id: 1
+        })
+    });
+    
+    const data = await response.json();
+    if (data.error) {
+        throw new Error(data.error.message);
+    }
+    
+    return data.result;
+}
+
+// Check testnet connection on page load
+async function checkTestnetConnection() {
+    try {
+        const response = await fetch('/rpc-testnet', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                jsonrpc: '2.0',
+                method: 'eth_blockNumber',
+                params: [],
+                id: 1
+            })
+        });
+        
+        const data = await response.json();
+        if (data.result) {
+            const blockNumber = parseInt(data.result, 16);
+            showStatus(`Connected to Afro Testnet! Current block: ${blockNumber}`, 'success');
+        } else {
+            showStatus('Unable to connect to Afro Testnet', 'error');
+        }
+    } catch (error) {
+        showStatus('Testnet connection error: ' + error.message, 'error');
     }
 }
 
@@ -147,8 +303,7 @@ function addRecentRequest(address, txHash, timestamp) {
     }
 }
 
-// Initialize recent requests on page load
+// Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // You could load recent requests from localStorage or an API here
-    showStatus('Faucet ready! Enter your address to request test tokens.', 'info');
+    checkTestnetConnection();
 });

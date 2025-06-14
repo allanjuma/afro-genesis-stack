@@ -447,3 +447,23 @@ footer {
 .hero, .info-section, .docs-section, .rpc-section {
     animation: fadeIn 0.8s ease-out;
 }
+
+.implementation-note {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1.5rem;
+}
+
+.implementation-note h4 {
+    color: #856404;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.implementation-note p {
+    color: #856404;
+    font-size: 0.9rem;
+    margin: 0;
+}
