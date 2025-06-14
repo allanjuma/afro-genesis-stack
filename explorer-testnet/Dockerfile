@@ -15,9 +15,9 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Clone Blockscout - using a stable version
+# Clone Blockscout - using current stable version
 RUN git clone https://github.com/blockscout/blockscout.git . && \
-    git checkout v5.3.2
+    git checkout v8.1.1
 
 # Install hex and rebar
 RUN mix local.hex --force && \
