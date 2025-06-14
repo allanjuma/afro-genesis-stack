@@ -171,8 +171,17 @@ const AddressGenerationStats = () => {
   });
 
   if (isLoading) {
-    return <div className="animate-pulse">Loading address generation stats...</div>;
+    return <div className="animate-pulse">Loading address stats...</div>;
   }
+
+  if (error) {
+    return <div className="text-red-500">Error loading generation stats.</div>;
+  }
+
+  const totalGenerated = generationStats.data?.totalGenerated ?? 0;
+  const pendingGenerations = generationStats.data?.pendingGenerations ?? 0;
+  const avgAttempts = generationStats.data?.avgAttempts ?? 0;
+  const recentGenerations = generationStats.data?.recentGenerations ?? [];
 
   const getStatusBadge = (status: string, test?: boolean) => {
     if (test) {
@@ -276,7 +285,7 @@ const AddressGenerationStats = () => {
             <Hash className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{generationStats?.totalGenerated.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">{totalGenerated}</div>
             <p className="text-xs text-muted-foreground">Addresses created</p>
           </CardContent>
         </Card>
@@ -287,7 +296,7 @@ const AddressGenerationStats = () => {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{generationStats?.pendingGenerations || 0}</div>
+            <div className="text-2xl font-bold">{pendingGenerations}</div>
             <p className="text-xs text-muted-foreground">In progress</p>
           </CardContent>
         </Card>
@@ -298,7 +307,7 @@ const AddressGenerationStats = () => {
             <Phone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{generationStats?.avgAttempts.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">{avgAttempts}</div>
             <p className="text-xs text-muted-foreground">Per address</p>
           </CardContent>
         </Card>

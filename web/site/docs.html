@@ -1,0 +1,205 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Afro Validator Node Backend Docs</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    body { font-family: system-ui, sans-serif; background: #fcfcfc; color: #222; }
+    .docs-container { max-width: 850px; margin: 2rem auto; background: white; border-radius: 10px; padding: 2rem; box-shadow: 0 2px 8px #0001; }
+    h1, h2 { color: #0b163c; }
+    .script-section { margin-bottom: 2rem; }
+    .script-header { display: flex; align-items: center; justify-content: space-between; }
+    code, pre { background: #f5f5fa; border-radius: 4px; padding: 2px 7px; font-size: 99%; }
+    .try-box { background: #f6f9fa; padding: 1rem; border-radius: 8px; border: 1px solid #eef2f7; margin-top: 0.3em; }
+    .try-label { font-weight: bold; }
+    .desc { color: #223355cc; margin-top: -0.3em; }
+    .edit-tip { margin-top: 1em; font-size: 95%; color: #227; }
+    input, select, button { font-size: 1em; margin-top: 0.2em; }
+    .output { font-family: 'Fira Mono', ui-monospace, monospace; white-space: pre-wrap; background: #242e36; color: #d9faef; padding: 1em; border-radius: 8px; margin-top: 0.2em; min-height: 32px; }
+    .run-btn { margin-left: 1em; background: #125; color: #f6f6fc; border: none; border-radius: 4px; padding: 0.3em 1em; cursor: pointer; }
+    .run-btn:hover { background: #19193d; }
+    .badge { display: inline-block; background: #e1effa; color: #194c63; font-size: 88%; border-radius: 5px; padding: 0 8px; margin-left: 0.5em; }
+  </style>
+  <script>
+    // Documentation of available scripts and commands (interactive, but does NOT directly run backend commands)
+    const scripts = [
+      {
+        name: "Address Generation",
+        script: "address_generation.sh",
+        description: "Brute-force generates an Afro address for a given MSISDN (phone number). Uses real geth attach validation and adds to block mempool if successful.",
+        example: "bash /validator/scripts/address_generation.sh 254700000001",
+        interactive: [
+          {
+            label: "MSISDN",
+            type: "input",
+            id: "gen-msisdn",
+            placeholder: "254700000001",
+            value: ""
+          }
+        ],
+        run: (args) => `bash /validator/scripts/address_generation.sh ${args[0] || "254700000001"}`,
+        docs: [
+          "The script will:",
+          "- Use the <code>generate_afro_address</code> function.",
+          "- Requires transaction fee validation if <code>AFRO_NETWORK_TYPE=mainnet</code> (uses geth attach).",
+          "- Randomizes extra characters for the address. Validates with <code>geth account validate-address</code>.",
+          "- Adds to mempool/block if successful.",
+          "- Sends SMS using configured API if enabled."
+        ]
+      },
+      {
+        name: "Block Reward Distribution",
+        script: "blocks.sh",
+        description: "Includes addresses from mempool and distributes validator rewards after confirmation by network peers.",
+        example: "bash /validator/scripts/blocks.sh include_addresses_in_block 12347",
+        interactive: [
+          { label: "Block Number", type: "input", id: "block-no", placeholder: "latest", value: "" }
+        ],
+        run: (args) => `bash /validator/scripts/blocks.sh include_addresses_in_block ${args[0] || "latest"}`,
+        docs: [
+          "The script will:",
+          "- Add pending addresses to the specified block.",
+          "- Log addresses and rewards.",
+          "- Wait for simulated network confirmation (production: P2P block confirmation to be implemented).",
+          "- Rewards are distributed only after confirmation."
+        ]
+      },
+      {
+        name: "Validator Settings",
+        script: "validator_registration.sh",
+        description: "Registers the validator’s phone number and address with the network.",
+        example: "bash /validator/scripts/validator_registration.sh",
+        interactive: [],
+        run: () => "bash /validator/scripts/validator_registration.sh",
+        docs: [
+          "The script will:",
+          "- Register phone number and address for this validator in persistent storage.",
+          "- Share with peer nodes.",
+          "- In production, this will broadcast details to network via P2P."
+        ]
+      },
+      {
+        name: "SMS Validation",
+        script: "sms.sh",
+        description: "Sends address validation SMS to a given phone number with a code/OTP using the real SMS API.",
+        example: "bash /validator/scripts/sms.sh 254700000001 abcdef1234567890",
+        interactive: [
+          { label: "Phone Number", type: "input", id: "sms-phone", placeholder: "254700000001", value: "" },
+          { label: "Validation Code", type: "input", id: "sms-code", placeholder: "abcdef...", value: "" }
+        ],
+        run: (args) => `bash /validator/scripts/sms.sh ${args[0] || "254700000001"} ${args[1] || "abcdef1"}`,
+        docs: [
+          "Runs <code>send_sms_validation PHONE VALIDATION_CODE</code>.",
+          "Will post to the configured SMS API."
+        ]
+      },
+      {
+        name: "Transaction Fee Validation",
+        script: "utils.sh",
+        description: "Validates that the MSISDN has paid a sufficient transaction fee for address generation.",
+        example: "bash /validator/scripts/utils.sh validate_transaction_fee 254700000001",
+        interactive: [
+          { label: "MSISDN", type: "input", id: "fee-msisdn", placeholder: "254700000001", value: "" }
+        ],
+        run: (args) => `bash /validator/scripts/utils.sh validate_transaction_fee ${args[0] || "254700000001"}`,
+        docs: [
+          "Will:",
+          "- Check pending transactions from MSISDN using <code>geth attach</code>.",
+          "- Confirm at least 0.001 ETH in value.",
+          "- Deny or approve address generation based on fee."
+        ]
+      }
+    ];
+
+    function getEl(id) { return document.getElementById(id); }
+
+    function renderDocs() {
+      const container = getEl('docs-root');
+      container.innerHTML = '';
+      scripts.forEach((script, idx) => {
+        const sec = document.createElement('div');
+        sec.className = 'script-section';
+        // Header
+        const header = document.createElement('div');
+        header.className = 'script-header';
+        header.innerHTML = `<h2>${script.name} <span class="badge">${script.script}</span></h2>`;
+        sec.appendChild(header);
+        // Description
+        const desc = document.createElement('div');
+        desc.className = 'desc';
+        desc.textContent = script.description;
+        sec.appendChild(desc);
+        // Example
+        const tryBox = document.createElement('div');
+        tryBox.className = 'try-box';
+        // Interactive inputs
+        let argVals = [];
+        if (script.interactive.length > 0) {
+          script.interactive.forEach((input, i) => {
+            const label = document.createElement('div');
+            label.className = 'try-label';
+            label.innerHTML = input.label + ': ';
+            const inp = document.createElement('input');
+            inp.placeholder = input.placeholder || '';
+            inp.value = input.value || '';
+            inp.id = input.id + '-' + idx;
+            inp.style.marginLeft = "0.4em";
+            inp.oninput = () => { argVals[i] = inp.value; };
+            tryBox.appendChild(label);
+            tryBox.appendChild(inp);
+          });
+        }
+        // Run button
+        const runBtn = document.createElement('button');
+        runBtn.className = 'run-btn';
+        runBtn.innerHTML = 'Show Bash Command';
+        const outputDiv = document.createElement('div');
+        outputDiv.className = 'output';
+        outputDiv.style.display = "none";
+        runBtn.onclick = () => {
+          outputDiv.textContent = script.run(argVals);
+          outputDiv.style.display = "block";
+        };
+        tryBox.appendChild(runBtn);
+        tryBox.appendChild(outputDiv);
+
+        // Example static command
+        const staticEx = document.createElement('div');
+        staticEx.style.marginTop = "0.5em";
+        staticEx.innerHTML = `<span class="try-label">Example:</span> <code>${script.example}</code>`;
+        tryBox.appendChild(staticEx);
+
+        sec.appendChild(tryBox);
+
+        // Docs section
+        const docL = document.createElement('ul');
+        docL.style.marginTop = "0.5em";
+        script.docs.forEach(d => {
+          const li = document.createElement('li');
+          li.innerHTML = d;
+          docL.appendChild(li);
+        });
+        sec.appendChild(docL);
+
+        container.appendChild(sec);
+      });
+    }
+
+    window.onload = renderDocs;
+  </script>
+</head>
+<body>
+  <div class="docs-container">
+    <h1>Afro Validator Node Backend Scripts (Interactive Docs)</h1>
+    <p>
+      This page documents the core backend scripts run by the validator node, using Bash and <code>geth attach</code> for blockchain functions. All behaviors shown here are for the <b>actual backend</b> as used in a live validator setup.
+    </p>
+    <div class="edit-tip">
+      <b>Tip:</b> Enter your values in the interactive boxes below and click "Show Bash Command" for the real script call. Explanations below show precisely how your validator backend forms and operates each command.
+    </div>
+    <div id="docs-root"></div>
+  </div>
+</body>
+</html>
