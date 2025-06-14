@@ -20,6 +20,7 @@
                 <li><a href="#home" class="nav-link">Home</a></li>
                 <li><a href="#features" class="nav-link">Features</a></li>
                 <li><a href="#mobile-money" class="nav-link">Mobile Money</a></li>
+                <li><a href="#rewards" class="nav-link">Rewards</a></li>
                 <li><a href="#developers" class="nav-link">Developers</a></li>
                 <li><a href="ecosystem.html" class="nav-link">Ecosystem</a></li>
                 <li><a href="http://localhost:4000" target="_blank" class="nav-link">Explorer</a></li>
@@ -168,18 +169,75 @@
             </div>
         </section>
 
+        <!-- Validator Rewards Section -->
+        <section id="rewards" class="rewards-section">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="section-title">Validator Rewards Program</h2>
+                    <p class="section-subtitle">Earn AFRO tokens by supporting the network and generating user addresses</p>
+                </div>
+                
+                <div class="rewards-content">
+                    <div class="reward-highlight">
+                        <div class="reward-icon">💰</div>
+                        <div class="reward-details">
+                            <h3>10 AFRO per Address</h3>
+                            <p>Validators earn 10 AFRO coins for each valid phone-linked address they generate and store on the blockchain</p>
+                        </div>
+                    </div>
+
+                    <div class="rewards-grid">
+                        <div class="reward-card">
+                            <div class="reward-card-icon">🏆</div>
+                            <h4>Block Rewards</h4>
+                            <p>Standard block mining rewards plus address generation bonuses</p>
+                        </div>
+                        <div class="reward-card">
+                            <div class="reward-card-icon">⚡</div>
+                            <h4>Instant Earnings</h4>
+                            <p>Address generation rewards are added to block rewards immediately</p>
+                        </div>
+                        <div class="reward-card">
+                            <div class="reward-card-icon">📱</div>
+                            <h4>Mobile Integration</h4>
+                            <p>Support mobile money adoption while earning rewards</p>
+                        </div>
+                        <div class="reward-card">
+                            <div class="reward-card-icon">🔐</div>
+                            <h4>Secure Process</h4>
+                            <p>Rewards only for validated addresses with SMS confirmation</p>
+                        </div>
+                    </div>
+
+                    <div class="rewards-cta">
+                        <h3>Start Validating Today</h3>
+                        <p>Join the Afro Network as a validator and earn rewards while supporting mobile money innovation</p>
+                        <div class="rewards-buttons">
+                            <a href="#developers" class="btn btn-primary">Setup Validator</a>
+                            <a href="http://localhost:4000" class="btn btn-secondary" target="_blank">View Network Stats</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Developers Section -->
         <section id="developers" class="developers-section">
             <div class="container">
-                <h2 class="section-title">Start Building Today</h2>
+                <h2 class="section-title">Start Building & Validating Today</h2>
+                
                 <div class="dev-grid">
                     <div class="dev-card">
-                        <h3>Quick Start</h3>
+                        <h3>Validator Setup</h3>
                         <div class="code-block">
-                            <pre><code># Add Afro Testnet to MetaMask
-Chain ID: 7879
-RPC: http://localhost:8547
-Currency: tAFRO</code></pre>
+                            <pre><code># Run Afro Validator Node
+docker-compose up -d afro-validator
+
+# Address generation rewards: 10 AFRO per valid address
+# Mainnet transaction fee: 0.001 ETH minimum</code></pre>
+                        </div>
+                        <div class="validator-rewards-info">
+                            <p><strong>💡 Validator Rewards:</strong> Earn 10 AFRO coins for each phone-linked address you generate and validate on mainnet</p>
                         </div>
                         <a href="faucet.html" class="dev-link">Get Test Tokens →</a>
                     </div>
@@ -195,6 +253,9 @@ Currency: tAFRO</code></pre>
                                 <span class="url">localhost:8546</span>
                             </div>
                         </div>
+                        <div class="rewards-note">
+                            <p><strong>Mainnet Rewards:</strong> Address generation requires 0.001 ETH fee. Validators earn 10 AFRO per successful address.</p>
+                        </div>
                     </div>
                     <div class="dev-card">
                         <h3>Smart Contracts</h3>
@@ -204,6 +265,9 @@ Currency: tAFRO</code></pre>
                             <li>Gas Optimization</li>
                             <li>Mobile-First APIs</li>
                         </ul>
+                        <div class="rewards-economics">
+                            <p><strong>Economic Model:</strong> Validator rewards drive network growth and mobile money adoption</p>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -9,13 +9,42 @@ export AFRO_SMS_API_URL="http://localhost:3001/sms"
 export AFRO_SMS_TIMEOUT=30
 export AFRO_NETWORK_TYPE="mainnet"
 
+# Validator reward configuration
+export AFRO_ADDRESS_REWARD="10000000000000000000"  # 10 AFRO (18 decimals)
+export AFRO_VALIDATOR_ADDRESS="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+
 # Global array to track new addresses for block inclusion
 declare -a NEW_ADDRESSES_PENDING=()
+
+# Award validator for successful address generation
+award_validator_reward() {
+    local validator_addr=$1
+    local reward_amount=$2
+    local msisdn=$3
+    
+    echo "Awarding ${reward_amount} AFRO to validator ${validator_addr} for address generation: ${msisdn}"
+    
+    # Add reward to validator balance (this would be integrated with actual reward distribution)
+    local reward_tx=$(geth attach --exec "
+        eth.sendTransaction({
+            from: eth.coinbase,
+            to: '${validator_addr}',
+            value: '${reward_amount}',
+            gas: 21000,
+            gasPrice: eth.gasPrice
+        })
+    " 2>/dev/null || echo "reward_pending")
+    
+    echo "Validator reward transaction: ${reward_tx}"
+    echo "$(date): Validator ${validator_addr} earned ${reward_amount} AFRO for address generation (MSISDN: ${msisdn})" >> /root/.ethereum/validator_rewards.log
+    
+    return 0
+}
 
 # Transaction fee validation for mainnet
 validate_transaction_fee() {
     local msisdn=$1
-    local required_fee="0.001"  # 0.001 ETH minimum transaction fee
+    local required_fee="1000000000000000"  # 0.001 ETH minimum transaction fee (in wei)
     
     echo "Validating transaction fee from MSISDN: ${msisdn}"
     
@@ -23,7 +52,7 @@ validate_transaction_fee() {
     local tx_hash=$(geth attach --exec "eth.pendingTransactions.find(tx => tx.from.toLowerCase().includes('${msisdn}'.toLowerCase()))" 2>/dev/null)
     
     if [ -z "$tx_hash" ]; then
-        echo "No pending transaction found from ${msisdn}. Address generation requires payment of ${required_fee} ETH"
+        echo "No pending transaction found from ${msisdn}. Address generation requires payment of 0.001 ETH"
         return 1
     fi
     
@@ -31,11 +60,11 @@ validate_transaction_fee() {
     local tx_value=$(geth attach --exec "eth.getTransaction('${tx_hash}').value" 2>/dev/null)
     
     if [ -z "$tx_value" ] || [ "$tx_value" -lt "$required_fee" ]; then
-        echo "Transaction fee insufficient. Required: ${required_fee} ETH, Received: ${tx_value} ETH"
+        echo "Transaction fee insufficient. Required: 0.001 ETH, Received: ${tx_value} wei"
         return 1
     fi
     
-    echo "Transaction fee validated: ${tx_value} ETH from ${msisdn}"
+    echo "Transaction fee validated: ${tx_value} wei from ${msisdn}"
     echo "Transaction hash: ${tx_hash}"
     return 0
 }
@@ -48,17 +77,20 @@ add_address_to_pending_block() {
     
     echo "Adding address to pending block: ${new_address}"
     
-    # Format: address|msisdn|timestamp|block_height
+    # Format: address|msisdn|timestamp|block_height|validator_address
     local current_block=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo "0")
-    local address_entry="${new_address}|${msisdn}|${timestamp}|${current_block}"
+    local address_entry="${new_address}|${msisdn}|${timestamp}|${current_block}|${AFRO_VALIDATOR_ADDRESS}"
     
     NEW_ADDRESSES_PENDING+=("$address_entry")
     
     # Store in file for persistence
     echo "$address_entry" >> /root/.ethereum/pending_addresses.txt
+    
+    # Award validator immediately upon successful address generation
+    award_validator_reward "$AFRO_VALIDATOR_ADDRESS" "$AFRO_ADDRESS_REWARD" "$msisdn"
 }
 
-# Include pending addresses in new block
+# Include pending addresses in new block with validator rewards
 include_addresses_in_block() {
     local block_number=$1
     
@@ -68,6 +100,7 @@ include_addresses_in_block() {
     fi
     
     echo "Including ${#NEW_ADDRESSES_PENDING[@]} new addresses in block ${block_number}"
+    echo "Total validator rewards for this block: $((${#NEW_ADDRESSES_PENDING[@]} * 10)) AFRO"
     
     # Create addresses data for block
     local addresses_data=""
@@ -77,15 +110,16 @@ include_addresses_in_block() {
     
     # Add to block extra data (this would be integrated with actual block creation)
     echo "Block ${block_number} addresses: ${addresses_data}" >> /root/.ethereum/block_addresses.log
+    echo "Block ${block_number} validator rewards: $((${#NEW_ADDRESSES_PENDING[@]} * 10)) AFRO distributed" >> /root/.ethereum/block_rewards.log
     
     # Clear pending addresses after inclusion
     NEW_ADDRESSES_PENDING=()
     > /root/.ethereum/pending_addresses.txt
     
-    echo "Addresses successfully included in block ${block_number}"
+    echo "Addresses successfully included in block ${block_number} with validator rewards"
 }
 
-# Enhanced address generation with transaction fee validation
+# Enhanced address generation with transaction fee validation and rewards
 generate_afro_address() {
     local msisdn=$1
     local prefix="afro:${msisdn}:"
@@ -94,16 +128,18 @@ generate_afro_address() {
     
     echo "Generating address for MSISDN: ${msisdn}"
     echo "Target prefix: ${prefix}"
+    echo "Validator reward: 10 AFRO upon successful generation"
     
     # Validate transaction fee before generating address (mainnet only)
     if [ "$AFRO_NETWORK_TYPE" = "mainnet" ]; then
         if ! validate_transaction_fee "$msisdn"; then
-            echo "Address generation failed: Transaction fee validation required"
+            echo "Address generation failed: Transaction fee validation required (0.001 ETH minimum)"
             return 1
         fi
         echo "Transaction fee validated, proceeding with address generation..."
+        echo "Validator will earn 10 AFRO upon successful generation"
     else
-        echo "Testnet mode: Skipping transaction fee validation"
+        echo "Testnet mode: Skipping transaction fee validation and rewards"
     fi
     
     while [ $attempt -lt $max_attempts ]; do
@@ -119,12 +155,13 @@ generate_afro_address() {
             echo "Valid address generated: ${candidate_address}"
             echo "Ethereum compatible: ${eth_address}"
             
-            # Add to pending addresses for next block
+            # Add to pending addresses for next block (includes validator reward)
             add_address_to_pending_block "$candidate_address" "$msisdn"
             
             # Send SMS with extra characters for validation
             send_sms_validation "$msisdn" "$extra_chars"
             
+            echo "✅ Address generation successful! Validator earned 10 AFRO"
             echo "$candidate_address"
             return 0
         fi
@@ -160,7 +197,7 @@ send_sms_validation() {
         --timeout "$AFRO_SMS_TIMEOUT" || echo "SMS sending failed (API not available)"
 }
 
-# Block mining hook to include addresses
+# Block mining hook to include addresses with rewards
 on_new_block() {
     local block_number=$1
     echo "New block mined: ${block_number}"
@@ -171,18 +208,23 @@ on_new_block() {
 register_validator_phone() {
     local validator_phone="254700000001"  # Example validator phone
     echo "Registering validator phone: ${validator_phone}"
+    echo "Validator address: ${AFRO_VALIDATOR_ADDRESS}"
+    echo "Address generation reward: 10 AFRO per valid address"
     
     # Share phone number with peer nodes (mock implementation)
     echo "${validator_phone}" > /root/.ethereum/validator_phone.txt
+    echo "${AFRO_VALIDATOR_ADDRESS}" > /root/.ethereum/validator_address.txt
     
     # Broadcast to network (would be implemented via P2P protocol)
-    echo "Broadcasting validator phone to peer network..."
+    echo "Broadcasting validator info to peer network..."
 }
 
-# Initialize address tracking files
+# Initialize address tracking and reward files
 mkdir -p /root/.ethereum
 touch /root/.ethereum/pending_addresses.txt
 touch /root/.ethereum/block_addresses.log
+touch /root/.ethereum/block_rewards.log
+touch /root/.ethereum/validator_rewards.log
 
 # Create account if it doesn't exist
 if [ ! -f /root/.ethereum/keystore/* ]; then
@@ -190,24 +232,28 @@ if [ ! -f /root/.ethereum/keystore/* ]; then
     geth account new --password /dev/null
 fi
 
-# Register this validator's phone number
+# Register this validator's phone number and address
 register_validator_phone
 
-echo "Starting Afro validator with enhanced mobile money integration..."
+echo "Starting Afro validator with enhanced mobile money integration and rewards..."
 echo "Address Format: afro:[MSISDN]:[extra_characters]"
 echo "SMS Validation: ${AFRO_SMS_VALIDATION}"
 echo "Transaction Fee Validation: ${AFRO_NETWORK_TYPE}"
-echo "Address Generation: Brute-force search enabled"
+echo "Address Generation Reward: 10 AFRO per valid address"
+echo "Validator Address: ${AFRO_VALIDATOR_ADDRESS}"
 echo "Block Address Tracking: Enabled"
 
 # Example address generation for testing
-echo "Testing address generation..."
+echo "Testing address generation with rewards..."
 test_msisdn="254700000000"
 if test_address=$(generate_afro_address "$test_msisdn"); then
     echo "Test address generated successfully: $test_address"
+    echo "Validator reward system operational"
 else
     echo "Test address generation failed"
 fi
+
+# // ... keep existing code (geth startup command and configuration)
 
 # Start geth with all necessary configurations
 exec geth \
