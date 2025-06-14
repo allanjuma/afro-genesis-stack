@@ -1,10 +1,47 @@
-
 #!/bin/bash
 
 # AppImage builder for Afro Network
 # This script handles the creation of the AppImage package
 
 set -e
+
+build_appimage_docker() {
+    echo "🐳 Building AppImage using Docker..."
+    
+    # Check if Docker is available
+    if ! command -v docker &> /dev/null; then
+        echo "❌ Docker is not installed. Please install Docker first."
+        echo "💡 Alternatively, you can use the native build method."
+        exit 1
+    fi
+    
+    # Build the Docker image
+    echo "🔨 Building AppImage builder Docker image..."
+    docker build -t afro-appimage-builder -f appimage/Dockerfile .
+    
+    # Create output directory if it doesn't exist
+    mkdir -p "$(pwd)"
+    
+    # Run the container with volume mount for output
+    echo "🚀 Running AppImage build in Docker container..."
+    docker run --rm \
+        -v "$(pwd):/output" \
+        afro-appimage-builder
+    
+    # Check if AppImage was created
+    if [ -f "AfroNetwork.AppImage" ]; then
+        echo "✅ AppImage build completed successfully!"
+        echo "📱 Your AppImage is ready: ./AfroNetwork.AppImage"
+        echo ""
+        echo "🚀 To use the AppImage:"
+        echo "   1. Make it executable: chmod +x AfroNetwork.AppImage"
+        echo "   2. Run it: ./AfroNetwork.AppImage"
+        echo "   3. Access dashboard at http://localhost:8080"
+    else
+        echo "❌ AppImage build failed - file not found"
+        exit 1
+    fi
+}
 
 install_fuse() {
     echo "🔍 Checking FUSE installation..."
@@ -316,7 +353,14 @@ VITE_EOF
 }
 
 build_appimage() {
-    echo "🚀 Building Afro Network AppImage..."
+    # Check if Docker is available and user prefers Docker build
+    if command -v docker &> /dev/null; then
+        echo "🐳 Docker detected. Building AppImage using Docker for consistency..."
+        build_appimage_docker
+        return 0
+    fi
+    
+    echo "🚀 Building Afro Network AppImage (native build)..."
     
     # Install FUSE first
     install_fuse

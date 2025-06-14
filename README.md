@@ -36,20 +36,36 @@ docker-compose ps
 
 ## 📦 AppImage Build
 
-### Prerequisites for AppImage
+### Docker-based Build (Recommended)
+The AppImage is now built inside a Docker container for consistent, reproducible builds across all environments.
+
+```bash
+# Build AppImage using Docker (recommended)
+./setup.sh --appimage-only
+
+# Or build manually with Docker
+docker build -t afro-appimage-builder -f appimage/Dockerfile .
+docker run --rm -v "$(pwd):/output" afro-appimage-builder
+```
+
+### Native Build (Legacy)
+If Docker is not available, the system will fall back to native building:
+
+```bash
+# Prerequisites for native build
 - Linux system (Ubuntu/Debian/Fedora/Arch/openSUSE)
 - Node.js v18+ (automatically installed via nvm if needed)
 - FUSE library (automatically installed if missing)
 - Build essentials and dependencies
-
-### Building AppImage
-```bash
-# Build AppImage only (skips Docker setup)
-./setup.sh --appimage-only
-
-# Or build as part of full setup
-./setup.sh
 ```
+
+### AppImage Features
+- **Dockerized Build**: Consistent builds across all environments
+- **Portable**: Runs on any Linux distribution
+- **Self-contained**: No installation required
+- **Cross-architecture**: Automatically detects system architecture
+- **Integrated dashboard**: Complete Afro Network interface
+- **No dependencies**: All required components bundled
 
 ### Using the AppImage
 ```bash
@@ -62,29 +78,25 @@ chmod +x AfroNetwork.AppImage
 # Access dashboard at http://localhost:8080
 ```
 
-### AppImage Features
-- **Portable**: Runs on any Linux distribution
-- **Self-contained**: No installation required
-- **Cross-architecture**: Automatically detects system architecture
-- **Integrated dashboard**: Complete Afro Network interface
-- **No dependencies**: All required components bundled
+### AppImage Build Process
+1. **Docker Container**: Builds in Ubuntu 22.04 container with Node.js 18
+2. **React Build**: Compiles the dashboard using Vite
+3. **AppImage Creation**: Packages everything using AppImageTool
+4. **Output**: Places `AfroNetwork.AppImage` in current directory
 
-### AppImage Troubleshooting
+### Build Troubleshooting
 ```bash
-# Check FUSE installation
-ldconfig -p | grep libfuse
+# Check Docker installation
+docker --version
 
-# Manual FUSE installation
-sudo apt-get install fuse libfuse2  # Ubuntu/Debian
-sudo dnf install fuse fuse-libs     # Fedora
-sudo pacman -S fuse2               # Arch
+# Manual Docker build
+docker build -t afro-appimage-builder -f appimage/Dockerfile .
 
-# Check Node.js version
-node --version  # Should be v18+
+# Clean Docker build
+docker build --no-cache -t afro-appimage-builder -f appimage/Dockerfile .
 
-# Clean build (if needed)
-rm -rf node_modules dist AfroNetwork.AppImage
-./setup.sh --appimage-only
+# Check build logs
+docker run --rm afro-appimage-builder
 ```
 
 ## 🌐 Service URLs
@@ -126,6 +138,9 @@ afro-chain/
 │   ├── Dockerfile
 │   ├── nginx.conf     # NGINX configuration
 │   └── site/          # Static HTML/CSS/JS files
+├── appimage/          # AppImage build system
+│   ├── Dockerfile     # AppImage builder container
+│   └── build-appimage.sh  # Build script
 ├── scripts/           # Build and deployment scripts
 │   ├── appimage-builder.sh    # AppImage build script
 │   ├── env-generator.sh       # Environment configuration
@@ -164,6 +179,13 @@ afro-chain/
 - **Protocol Format**: `0x1234567890abcdef...` (standard Ethereum)
 - **Automatic Conversion**: Frontend handles format conversion
 - **Wallet Compatible**: Works with MetaMask and other wallets
+
+### AppImage Distribution
+- **Dockerized Build**: Consistent builds using Docker containers
+- **Portable Package**: Single file that runs on any Linux distribution
+- **Self-contained**: Includes Node.js runtime and all dependencies
+- **Desktop Integration**: Proper .desktop file and icon integration
+- **Architecture Detection**: Automatically builds for target architecture
 
 ## 🔧 Management
 
@@ -273,6 +295,21 @@ docker system df
 - Ensure RPC URL is http://localhost:8545
 - Check that validator is responding
 - Try using the proxy endpoint: http://localhost/rpc
+
+### AppImage Build Issues
+```bash
+# Check Docker installation
+docker --version
+
+# Rebuild AppImage builder
+docker build --no-cache -t afro-appimage-builder -f appimage/Dockerfile .
+
+# Check build logs
+docker run --rm afro-appimage-builder
+
+# Native build fallback
+./setup.sh --appimage-only  # Will use native build if Docker fails
+```
 
 ### Port Conflicts
 Edit `docker-compose.yml` to change port mappings:
