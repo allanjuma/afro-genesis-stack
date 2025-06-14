@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # AppImage builder for Afro Network
@@ -142,18 +141,18 @@ EOF
     if [ ! -d "dist" ]; then
         echo "🔨 Building React application..."
         
-        # Try different build strategies to handle crypto issues
         build_success=false
         
-        # Strategy 1: Try with crypto polyfill workaround
-        echo "📦 Attempting build with crypto polyfill..."
+        # Strategy 1: Try with node polyfills plugin
+        echo "📦 Attempting build with node polyfills..."
         if command -v npm &> /dev/null; then
-            # Create a temporary vite config that includes crypto polyfill
+            # Create a temporary vite config that includes node polyfills
             cat > vite.config.temp.ts << 'VITE_EOF'
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -162,6 +161,9 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    nodePolyfills({
+      protocolImports: true,
+    }),
     mode === 'development' &&
     componentTagger(),
   ].filter(Boolean),
@@ -170,28 +172,20 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  define: {
-    global: 'globalThis',
-  },
-  build: {
-    rollupOptions: {
-      external: [],
-    },
-  },
 }));
 VITE_EOF
             
             # Try building with the temporary config
             if npx vite build --config vite.config.temp.ts; then
                 build_success=true
-                echo "✅ Build succeeded with crypto polyfill"
+                echo "✅ Build succeeded with node polyfills"
             fi
             
             # Clean up temporary config
             rm -f vite.config.temp.ts
         fi
         
-        # Strategy 2: Try normal build if crypto polyfill didn't work
+        # Strategy 2: Try normal build if polyfill didn't work or npm not present
         if [ "$build_success" = false ]; then
             echo "📦 Attempting normal build..."
             if command -v bun &> /dev/null; then
@@ -208,24 +202,6 @@ VITE_EOF
                 echo "Using yarn to build..."
                 if yarn build; then
                     build_success=true
-                fi
-            fi
-        fi
-        
-        # Strategy 3: Try with older Node.js if available
-        if [ "$build_success" = false ]; then
-            echo "📦 Attempting build with Node.js compatibility mode..."
-            
-            # Try to use nvm to switch to Node 16 if available
-            if command -v nvm &> /dev/null; then
-                echo "Trying with Node.js 16..."
-                if nvm use 16 2>/dev/null; then
-                    if npm run build; then
-                        build_success=true
-                        echo "✅ Build succeeded with Node.js 16"
-                    fi
-                    # Switch back to default node version
-                    nvm use default 2>/dev/null || true
                 fi
             fi
         fi

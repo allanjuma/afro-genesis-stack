@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -89,8 +90,8 @@ const AddressGenerationStats = () => {
         };
       }
     },
-    refetchInterval: (data) => {
-      return data && data.totalGenerated > 0 ? 3000 : false;
+    refetchInterval: (query) => {
+      return query.state.data && query.state.data.totalGenerated > 0 ? 3000 : false;
     },
     retry: 1,
     retryDelay: 5000,
