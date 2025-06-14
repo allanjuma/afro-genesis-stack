@@ -207,7 +207,7 @@ const AddressGenerationStats = () => {
             <Hash className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{generationStats?.totalGenerated.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">{generationStats?.totalGenerated?.toLocaleString() || 0}</div>
             <p className="text-xs text-muted-foreground">Addresses created</p>
           </CardContent>
         </Card>
@@ -229,7 +229,7 @@ const AddressGenerationStats = () => {
             <Phone className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{generationStats?.avgAttempts.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">{generationStats?.avgAttempts?.toLocaleString() || 0}</div>
             <p className="text-xs text-muted-foreground">Per address</p>
           </CardContent>
         </Card>
@@ -240,8 +240,7 @@ const AddressGenerationStats = () => {
           <CardTitle>Recent Address Generations</CardTitle>
           <CardDescription>Latest address generation requests and their status</CardDescription>
         </CardHeader>
-        <CardContent>
-          {!generationStats?.recentGenerations.length ? (
+        <CardContent>          {!generationStats?.recentGenerations?.length ? (
             <div className="text-center py-8 text-muted-foreground">
               {isValidatorUnavailable ? 'No data available - validator service offline' : 'No recent address generations'}
             </div>
