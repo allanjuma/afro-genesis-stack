@@ -7,8 +7,66 @@ export AFRO_SMS_VALIDATION=true
 export AFRO_ADDRESS_PREFIX="afro:"
 export AFRO_SMS_API_URL="http://localhost:3001/sms"
 export AFRO_SMS_TIMEOUT=30
+export AFRO_NETWORK_TYPE="testnet"
 
-# Address generation function with brute-force search
+# Global array to track new addresses for block inclusion
+declare -a NEW_ADDRESSES_PENDING=()
+
+# Transaction fee validation for testnet (always returns valid)
+validate_transaction_fee() {
+    local msisdn=$1
+    
+    echo "Testnet mode: Transaction fee validation bypassed for MSISDN: ${msisdn}"
+    echo "Testnet allows free address generation for testing purposes"
+    return 0
+}
+
+# Add new address to pending list for next block
+add_address_to_pending_block() {
+    local new_address=$1
+    local msisdn=$2
+    local timestamp=$(date +%s)
+    
+    echo "Adding testnet address to pending block: ${new_address}"
+    
+    # Format: address|msisdn|timestamp|block_height
+    local current_block=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo "0")
+    local address_entry="${new_address}|${msisdn}|${timestamp}|${current_block}"
+    
+    NEW_ADDRESSES_PENDING+=("$address_entry")
+    
+    # Store in file for persistence
+    echo "$address_entry" >> /root/.ethereum/pending_addresses.txt
+}
+
+# Include pending addresses in new block
+include_addresses_in_block() {
+    local block_number=$1
+    
+    if [ ${#NEW_ADDRESSES_PENDING[@]} -eq 0 ]; then
+        echo "No pending addresses to include in testnet block ${block_number}"
+        return 0
+    fi
+    
+    echo "Including ${#NEW_ADDRESSES_PENDING[@]} new addresses in testnet block ${block_number}"
+    
+    # Create addresses data for block
+    local addresses_data=""
+    for addr_entry in "${NEW_ADDRESSES_PENDING[@]}"; do
+        addresses_data="${addresses_data}${addr_entry};"
+    done
+    
+    # Add to block extra data (this would be integrated with actual block creation)
+    echo "Testnet Block ${block_number} addresses: ${addresses_data}" >> /root/.ethereum/block_addresses.log
+    
+    # Clear pending addresses after inclusion
+    NEW_ADDRESSES_PENDING=()
+    > /root/.ethereum/pending_addresses.txt
+    
+    echo "Addresses successfully included in testnet block ${block_number}"
+}
+
+# Enhanced address generation with transaction fee validation
 generate_afro_address() {
     local msisdn=$1
     local prefix="afro:${msisdn}:"
@@ -17,6 +75,12 @@ generate_afro_address() {
     
     echo "Generating testnet address for MSISDN: ${msisdn}"
     echo "Target prefix: ${prefix}"
+    
+    # Validate transaction fee (testnet always passes)
+    if ! validate_transaction_fee "$msisdn"; then
+        echo "Address generation failed: Transaction fee validation required"
+        return 1
+    fi
     
     while [ $attempt -lt $max_attempts ]; do
         # Generate random extra characters (32 hex chars for compatibility)
@@ -30,6 +94,9 @@ generate_afro_address() {
         if geth account validate-address "$eth_address" 2>/dev/null; then
             echo "Valid testnet address generated: ${candidate_address}"
             echo "Ethereum compatible: ${eth_address}"
+            
+            # Add to pending addresses for next block
+            add_address_to_pending_block "$candidate_address" "$msisdn"
             
             # Send SMS with extra characters for validation
             send_sms_validation "$msisdn" "$extra_chars"
@@ -69,6 +136,13 @@ send_sms_validation() {
         --timeout "$AFRO_SMS_TIMEOUT" || echo "SMS sending failed (API not available)"
 }
 
+# Block mining hook to include addresses
+on_new_block() {
+    local block_number=$1
+    echo "New testnet block mined: ${block_number}"
+    include_addresses_in_block "$block_number"
+}
+
 # Peer node phone number registry
 register_validator_phone() {
     local validator_phone="254700000002"  # Example testnet validator phone
@@ -80,6 +154,11 @@ register_validator_phone() {
     # Broadcast to network (would be implemented via P2P protocol)
     echo "Broadcasting testnet validator phone to peer network..."
 }
+
+# Initialize address tracking files
+mkdir -p /root/.ethereum
+touch /root/.ethereum/pending_addresses.txt
+touch /root/.ethereum/block_addresses.log
 
 # Create account if it doesn't exist
 if [ ! -f /root/.ethereum/keystore/* ]; then
@@ -93,7 +172,9 @@ register_validator_phone
 echo "Starting Afro testnet validator with enhanced mobile money integration..."
 echo "Address Format: afro:[MSISDN]:[extra_characters]"
 echo "SMS Validation: ${AFRO_SMS_VALIDATION}"
+echo "Transaction Fee Validation: ${AFRO_NETWORK_TYPE} (bypassed)"
 echo "Address Generation: Brute-force search enabled"
+echo "Block Address Tracking: Enabled"
 
 # Example address generation for testing
 echo "Testing testnet address generation..."
