@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Phone, Hash, Clock, CheckCircle, Plus, AlertCircle } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { useState } from "react";
 
 interface AddressGeneration {
   id: string;
@@ -19,6 +20,9 @@ interface AddressGeneration {
 
 const AddressGenerationStats = () => {
   const queryClient = useQueryClient();
+
+  const [customMsisdn, setCustomMsisdn] = useState("254000000000");
+  const [testGenerations, setTestGenerations] = useState<AddressGeneration[]>([]);
 
   const { data: generationStats, isLoading, error } = useQuery({
     queryKey: ['addressGenerationStats'],
@@ -84,17 +88,26 @@ const AddressGenerationStats = () => {
       }
     },
     refetchInterval: (data) => {
-      // Only refetch if we have real data (not fallback), otherwise stop polling
       return data && data.totalGenerated > 0 ? 3000 : false;
     },
-    retry: 1, // Reduce retry attempts
-    retryDelay: 5000 // Wait longer between retries
+    retry: 1,
+    retryDelay: 5000,
   });
 
   const generateAddressMutation = useMutation({
-    mutationFn: async () => {
-      console.log('🚀 Calling actual validator to generate address...');
-      
+    mutationFn: async ({ msisdn, test }: { msisdn: string; test: boolean }) => {
+      if (test) {
+        // Fake test generation without blockchain inclusion:
+        return {
+          id: "test-" + Date.now(),
+          msisdn,
+          status: "completed",
+          attempts: 1,
+          timestamp: new Date(),
+          validationSent: false,
+          test: true,
+        };
+      }
       const response = await fetch('/rpc', {
         method: 'POST',
         headers: {
@@ -103,7 +116,7 @@ const AddressGenerationStats = () => {
         body: JSON.stringify({
           jsonrpc: '2.0',
           method: 'afro_generateAddress',
-          params: ['254000000000'],
+          params: [msisdn],
           id: 2
         })
       });
@@ -116,27 +129,39 @@ const AddressGenerationStats = () => {
       }
 
       const data = await response.json();
-      console.log('📡 Validator response:', data);
-      
       if (data.error) {
         throw new Error(data.error.message || 'Validator returned an error');
       }
 
-      return data.result;
+      return { ...data.result, msisdn, test: false };
     },
-    onSuccess: (data) => {
-      console.log('✅ Address generation started successfully:', data);
-      
-      toast({
-        title: "Address Generation Started",
-        description: `Generating address for 254000000000. This may take several minutes.`,
-      });
-      
-      // Refresh the stats
-      queryClient.invalidateQueries({ queryKey: ['addressGenerationStats'] });
+    onSuccess: (data, { test }) => {
+      if (test) {
+        setTestGenerations(prev => [
+          {
+            id: data.id,
+            msisdn: data.msisdn,
+            status: data.status,
+            attempts: data.attempts,
+            timestamp: data.timestamp,
+            validationSent: data.validationSent,
+            test: true,
+          },
+          ...prev
+        ]);
+        toast({
+          title: "Test Address Generated",
+          description: `Test address for ${data.msisdn} generated (not on blockchain).`,
+        });
+      } else {
+        toast({
+          title: "Address Generation Started",
+          description: `Generating address for ${data.msisdn}. This may take several minutes.`,
+        });
+        queryClient.invalidateQueries({ queryKey: ['addressGenerationStats'] });
+      }
     },
     onError: (error) => {
-      console.error('❌ Address generation error:', error);
       toast({
         title: "Generation Failed",
         description: `Could not start address generation: ${error.message}`,
@@ -149,7 +174,10 @@ const AddressGenerationStats = () => {
     return <div className="animate-pulse">Loading address generation stats...</div>;
   }
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, test?: boolean) => {
+    if (test) {
+      return <Badge variant="secondary" className="bg-blue-500">Test</Badge>;
+    }
     switch (status) {
       case 'completed':
         return <Badge variant="default" className="bg-green-500">Completed</Badge>;
@@ -167,23 +195,64 @@ const AddressGenerationStats = () => {
     return date.toLocaleTimeString();
   };
 
-  const isValidatorUnavailable = !generationStats || (generationStats.totalGenerated === 0 && generationStats.pendingGenerations === 0 && generationStats.recentGenerations.length === 0);
+  const isValidatorUnavailable =
+    !generationStats ||
+    (generationStats.totalGenerated === 0 &&
+      generationStats.pendingGenerations === 0 &&
+      generationStats.recentGenerations.length === 0);
+
+  // Merge test addresses (top) with real recentGenerations for display
+  const displayedGenerations = [
+    ...(testGenerations || []),
+    ...(generationStats?.recentGenerations || [])
+  ];
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap md:flex-nowrap justify-between items-center gap-4">
         <div>
           <h2 className="text-lg font-semibold">Address Generation</h2>
           <p className="text-sm text-muted-foreground">Generate and track Afro Network addresses</p>
         </div>
-        <Button 
-          onClick={() => generateAddressMutation.mutate()}
-          disabled={generateAddressMutation.isPending || isValidatorUnavailable}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            generateAddressMutation.mutate({ msisdn: customMsisdn, test: true });
+          }}
           className="flex items-center gap-2"
         >
-          <Plus className="h-4 w-4" />
-          {generateAddressMutation.isPending ? 'Generating...' : 'Generate Test Address'}
-        </Button>
+          <Input
+            value={customMsisdn}
+            onChange={e => setCustomMsisdn(e.target.value)}
+            maxLength={15}
+            className="max-w-[155px]"
+            type="tel"
+            pattern="\d{10,15}"
+            title="Enter MSISDN (Eg. 254700000000)"
+            required
+            disabled={generateAddressMutation.isPending}
+          />
+          <Button
+            type="submit"
+            variant="secondary"
+            disabled={generateAddressMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {generateAddressMutation.isPending ? 'Generating...' : 'Generate Test Address'}
+          </Button>
+          <Button
+            type="button"
+            variant="default"
+            disabled={generateAddressMutation.isPending || isValidatorUnavailable}
+            onClick={() => generateAddressMutation.mutate({ msisdn: customMsisdn, test: false })}
+            className="flex items-center gap-2"
+            title={isValidatorUnavailable ? "Validator must be online" : "Generate on Blockchain"}
+          >
+            <Plus className="h-4 w-4" />
+            {generateAddressMutation.isPending ? 'Generating...' : 'Generate on Blockchain'}
+          </Button>
+        </form>
       </div>
 
       {isValidatorUnavailable && (
@@ -241,9 +310,11 @@ const AddressGenerationStats = () => {
           <CardDescription>Latest address generation requests and their status</CardDescription>
         </CardHeader>
         <CardContent>
-          {!generationStats?.recentGenerations.length ? (
+          {!displayedGenerations.length ? (
             <div className="text-center py-8 text-muted-foreground">
-              {isValidatorUnavailable ? 'No data available - validator service offline' : 'No recent address generations'}
+              {isValidatorUnavailable
+                ? 'No data available - validator service offline'
+                : 'No recent address generations'}
             </div>
           ) : (
             <Table>
@@ -257,11 +328,13 @@ const AddressGenerationStats = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {generationStats.recentGenerations.map((gen) => (
+                {displayedGenerations.map((gen) => (
                   <TableRow key={gen.id}>
                     <TableCell className="font-mono">{gen.msisdn}</TableCell>
-                    <TableCell>{getStatusBadge(gen.status)}</TableCell>
-                    <TableCell>{gen.attempts.toLocaleString()}</TableCell>
+                    <TableCell>
+                      {getStatusBadge(gen.status, (gen as any).test)}
+                    </TableCell>
+                    <TableCell>{gen.attempts?.toLocaleString?.() ?? "-"}</TableCell>
                     <TableCell>{formatTimestamp(gen.timestamp)}</TableCell>
                     <TableCell>
                       {gen.validationSent ? (
