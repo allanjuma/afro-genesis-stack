@@ -15,6 +15,10 @@ build_appimage_docker() {
         return $?
     fi
     
+    # Build the React app first
+    echo "🔨 Building React app before Docker build..."
+    build_react_app
+    
     # Build the Docker image
     echo "🔨 Building AppImage builder Docker image..."
     if ! docker build -t afro-appimage-builder -f appimage/Dockerfile .; then
@@ -62,8 +66,18 @@ build_appimage_native() {
     # Install dependencies
     install_dependencies
     
-    # Build the React app first
+    # Build the React app first - this is crucial!
+    echo "🔨 Building React app before creating AppImage..."
     build_react_app
+    
+    # Verify the build was successful
+    if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
+        echo "❌ React app build failed or dist directory is empty"
+        echo "💡 Please ensure 'npm run build' works correctly"
+        exit 1
+    fi
+    
+    echo "✅ React app built successfully - found $(ls -1 dist | wc -l) files in dist/"
     
     # Check if AppImageTool is available
     if ! command -v appimagetool &> /dev/null; then
@@ -103,16 +117,29 @@ build_appimage_native() {
     
     # Create AppImage directory structure
     echo "📁 Creating AppImage directory structure..."
+    rm -rf AppDir
     mkdir -p AppDir/usr/bin
     mkdir -p AppDir/usr/share/applications
     mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
     
     # Copy application files
-    echo "📄 Copying application files..."
+    echo "📄 Copying built React app files to AppImage..."
     
-    # Copy built React app to AppDir root
-    echo "📦 Copying built React app ($(ls dist | wc -l) files)..."
+    # Copy ALL built React app files to AppDir root (not just some files)
+    echo "📦 Copying $(ls -1 dist | wc -l) files from dist/ to AppDir/..."
     cp -r dist/* AppDir/
+    
+    # Verify files were copied
+    if [ ! -f "AppDir/index.html" ]; then
+        echo "❌ index.html not found in AppDir after copying"
+        echo "Contents of dist/:"
+        ls -la dist/
+        echo "Contents of AppDir/:"
+        ls -la AppDir/
+        exit 1
+    fi
+    
+    echo "✅ React app files copied successfully to AppDir"
     
     # Create the main executable script
     cat > AppDir/usr/bin/afro-network << 'EOF'
@@ -123,27 +150,29 @@ export PATH="${APPDIR}/usr/bin:${PATH}"
 # Start the React dashboard
 cd "${APPDIR}"
 if [ -f "index.html" ]; then
+    echo "🚀 Starting Afro Network Dashboard on http://localhost:8080"
     python3 -m http.server 8080 &
     SERVER_PID=$!
     
     # Wait a moment for server to start
     sleep 2
     
-    # Open browser
+    # Open browser if available
     if command -v xdg-open &> /dev/null; then
-        xdg-open http://localhost:8080
+        xdg-open http://localhost:8080 &
     elif command -v firefox &> /dev/null; then
         firefox http://localhost:8080 &
     elif command -v chromium-browser &> /dev/null; then
         chromium-browser http://localhost:8080 &
     else
-        echo "Dashboard available at: http://localhost:8080"
+        echo "📱 Dashboard available at: http://localhost:8080"
     fi
     
     # Keep the server running
+    echo "🛡️  Server running (PID: $SERVER_PID). Press Ctrl+C to stop."
     wait $SERVER_PID
 else
-    echo "Dashboard files not found at: ${APPDIR}"
+    echo "❌ Dashboard files not found at: ${APPDIR}"
     echo "Contents of AppDir:"
     ls -la "${APPDIR}"
     exit 1
@@ -188,6 +217,15 @@ EOF
     
     # Copy icon to root
     cp AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png AppDir/
+    
+    # Final verification before building AppImage
+    echo "🔍 Final verification of AppImage contents:"
+    echo "AppDir contents:"
+    ls -la AppDir/
+    echo "Key files check:"
+    echo "- index.html: $([ -f "AppDir/index.html" ] && echo "✅ Found" || echo "❌ Missing")"
+    echo "- assets/: $([ -d "AppDir/assets" ] && echo "✅ Found" || echo "❌ Missing")"
+    echo "- AppRun: $([ -f "AppDir/AppRun" ] && echo "✅ Found" || echo "❌ Missing")"
     
     # Build AppImage with proper architecture
     echo "🔨 Building AppImage for architecture: $ARCH..."
@@ -526,6 +564,8 @@ VITE_EOF
     fi
     
     echo "✅ React app built successfully - dist directory created with $(ls dist | wc -l) files"
+    echo "🔍 Built files include:"
+    ls -la dist/
 }
 
 build_appimage() {

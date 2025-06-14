@@ -30,17 +30,21 @@ esac
 echo "🏗️  Building for architecture: $ARCH"
 export ARCH
 
-# Build the React app
+# Build the React app first (crucial step!)
 echo "🔨 Building React application..."
 npm run build
 
 # Verify build output
 if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
     echo "❌ Build failed - dist directory is missing or empty"
+    echo "Contents of workspace:"
+    ls -la
     exit 1
 fi
 
 echo "✅ React app built successfully - $(ls dist | wc -l) files created"
+echo "🔍 Built files:"
+ls -la dist/
 
 # Create AppImage directory structure
 echo "📁 Creating AppImage directory structure..."
@@ -49,9 +53,23 @@ mkdir -p AppDir/usr/bin
 mkdir -p AppDir/usr/share/applications
 mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
 
-# Copy built React app to AppDir root
-echo "📦 Copying built React app..."
+# Copy ALL built React app files to AppDir root
+echo "📦 Copying ALL built React app files to AppImage..."
 cp -r dist/* AppDir/
+
+# Verify critical files were copied
+if [ ! -f "AppDir/index.html" ]; then
+    echo "❌ Critical error: index.html not found in AppDir"
+    echo "Contents of dist/:"
+    ls -la dist/
+    echo "Contents of AppDir/:"
+    ls -la AppDir/
+    exit 1
+fi
+
+echo "✅ All React app files copied to AppImage"
+echo "🔍 AppDir contents:"
+ls -la AppDir/
 
 # Create the main executable script
 cat > AppDir/usr/bin/afro-network << 'EOF'
@@ -127,6 +145,12 @@ cp AppDir/usr/share/applications/afro-network.desktop AppDir/
 
 # Copy icon to root
 cp AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png AppDir/
+
+# Final verification before building
+echo "🔍 Final verification before AppImage creation:"
+echo "- index.html: $([ -f "AppDir/index.html" ] && echo "✅ Found" || echo "❌ Missing")"
+echo "- assets/: $([ -d "AppDir/assets" ] && echo "✅ Found $(ls AppDir/assets | wc -l) files" || echo "❌ Missing")"
+echo "- AppRun: $([ -f "AppDir/AppRun" ] && echo "✅ Found" || echo "❌ Missing")"
 
 # Build AppImage
 echo "🔨 Building AppImage for architecture: $ARCH..."
