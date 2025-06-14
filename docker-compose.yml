@@ -2,6 +2,7 @@
 version: '3.8'
 
 services:
+  # Mainnet Services
   afro-validator:
     build: ./validator
     container_name: afro-validator
@@ -68,6 +69,73 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Testnet Services
+  afro-testnet-validator:
+    build: ./validator-testnet
+    container_name: afro-testnet-validator
+    ports:
+      - "30304:30304"
+      - "8547:8547"
+      - "8548:8548"
+    volumes:
+      - testnet_validator_data:/root/.ethereum
+    networks:
+      - afro-network
+    environment:
+      - NETWORK_ID=7879
+      - CHAIN_ID=7879
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8547"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  afro-testnet-db:
+    image: postgres:14
+    container_name: afro-testnet-db
+    environment:
+      POSTGRES_DB: blockscout
+      POSTGRES_USER: blockscout
+      POSTGRES_PASSWORD: blockscout_testnet_password
+    volumes:
+      - testnet_db_data:/var/lib/postgresql/data
+    networks:
+      - afro-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blockscout"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  afro-testnet-explorer:
+    build: ./explorer-testnet
+    container_name: afro-testnet-explorer
+    ports:
+      - "4001:4001"
+    depends_on:
+      - afro-testnet-db
+      - afro-testnet-validator
+    environment:
+      - DATABASE_URL=postgresql://blockscout:blockscout_testnet_password@afro-testnet-db:5432/blockscout
+      - ETHEREUM_JSONRPC_VARIANT=geth
+      - ETHEREUM_JSONRPC_HTTP_URL=http://afro-testnet-validator:8547
+      - ETHEREUM_JSONRPC_WS_URL=ws://afro-testnet-validator:8548
+      - COIN=tAFRO
+      - SUBNETWORK=Afro Testnet
+      - NETWORK=Afro Testnet
+      - LOGO=/images/afro-logo.png
+      - CHAIN_ID=7879
+    networks:
+      - afro-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4001"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   afro-web:
     build: ./web
     container_name: afro-web
@@ -89,3 +157,5 @@ networks:
 volumes:
   validator_data:
   db_data:
+  testnet_validator_data:
+  testnet_db_data:

@@ -1,24 +1,35 @@
-
-// MetaMask integration for Afro Network
-async function addToMetaMask() {
+// MetaMask integration for Afro Network (both mainnet and testnet)
+async function addToMetaMask(network = 'mainnet') {
     if (typeof window.ethereum !== 'undefined') {
         try {
+            const networkConfig = network === 'testnet' ? {
+                chainId: '0x1ECF', // 7879 in hex
+                chainName: 'Afro Testnet',
+                nativeCurrency: {
+                    name: 'Testnet Afro',
+                    symbol: 'tAFRO',
+                    decimals: 18
+                },
+                rpcUrls: ['http://localhost:8547'],
+                blockExplorerUrls: ['http://localhost:4001']
+            } : {
+                chainId: '0x1ECE', // 7878 in hex
+                chainName: 'Afro Network',
+                nativeCurrency: {
+                    name: 'Afro',
+                    symbol: 'AFRO',
+                    decimals: 18
+                },
+                rpcUrls: ['http://localhost:8545'],
+                blockExplorerUrls: ['http://localhost:4000']
+            };
+            
             await window.ethereum.request({
                 method: 'wallet_addEthereumChain',
-                params: [{
-                    chainId: '0x1ECE', // 7878 in hex
-                    chainName: 'Afro Network',
-                    nativeCurrency: {
-                        name: 'Afro',
-                        symbol: 'AFRO',
-                        decimals: 18
-                    },
-                    rpcUrls: ['http://localhost:8545'],
-                    blockExplorerUrls: ['http://localhost:4000']
-                }]
+                params: [networkConfig]
             });
             
-            alert('Afro Network has been added to MetaMask!');
+            alert(`Afro ${network === 'testnet' ? 'Testnet' : 'Network'} has been added to MetaMask!`);
         } catch (error) {
             console.error('Failed to add network:', error);
             alert('Failed to add network to MetaMask. Please add manually.');
@@ -100,6 +111,44 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Network tab switching
+function showNetwork(network) {
+    // Hide all network content
+    document.querySelectorAll('.network-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all tab buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Show selected network content
+    document.getElementById(`${network}-info`).classList.add('active');
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+}
+
+// RPC tab switching
+function showRPC(network) {
+    // Hide all RPC content
+    document.querySelectorAll('.rpc-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    // Remove active class from all tab buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    
+    // Show selected RPC content
+    document.getElementById(`${network}-rpc`).classList.add('active');
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+}
 
 // Export utilities for use in other scripts
 window.AfroUtils = {
