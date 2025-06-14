@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +31,7 @@ const AddressGenerationStats = () => {
   const [customMsisdn, setCustomMsisdn] = useState("254000000000");
   const [testGenerations, setTestGenerations] = useState<AddressGeneration[]>([]);
 
-  const { data: generationStats, isLoading, error } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ['addressGenerationStats'],
     queryFn: async (): Promise<AddressGenerationStatsData> => {
       console.log('🔍 Fetching address generation stats from validator...');
@@ -181,10 +180,11 @@ const AddressGenerationStats = () => {
     return <div className="text-red-500">Error loading generation stats.</div>;
   }
 
-  const totalGenerated = generationStats?.totalGenerated ?? 0;
-  const pendingGenerations = generationStats?.pendingGenerations ?? 0;
-  const avgAttempts = generationStats?.avgAttempts ?? 0;
-  const recentGenerations = generationStats?.recentGenerations ?? [];
+  // FIX: Always use 'data' from the query!
+  const totalGenerated = data?.totalGenerated ?? 0;
+  const pendingGenerations = data?.pendingGenerations ?? 0;
+  const avgAttempts = data?.avgAttempts ?? 0;
+  const recentGenerations = data?.recentGenerations ?? [];
 
   const getStatusBadge = (status: string, test?: boolean) => {
     if (test) {
@@ -208,15 +208,15 @@ const AddressGenerationStats = () => {
   };
 
   const isValidatorUnavailable =
-    !generationStats ||
-    (generationStats.totalGenerated === 0 &&
-      generationStats.pendingGenerations === 0 &&
-      generationStats.recentGenerations.length === 0);
+    !data ||
+    (data.totalGenerated === 0 &&
+      data.pendingGenerations === 0 &&
+      data.recentGenerations.length === 0);
 
   // Merge test addresses (top) with real recentGenerations for display
   const displayedGenerations = [
     ...(testGenerations || []),
-    ...(generationStats?.recentGenerations || [])
+    ...(data?.recentGenerations || [])
   ];
 
   return (
