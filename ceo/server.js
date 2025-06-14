@@ -8,9 +8,12 @@ const { Octokit } = require('@octokit/rest');
 const axios = require('axios');
 const fs = require('fs').promises;
 const path = require('path');
+const { exec } = require('child_process');
+const { promisify } = require('util');
 
 const app = express();
 const port = process.env.PORT || 3000;
+const execAsync = promisify(exec);
 
 // Middleware
 app.use(helmet());
@@ -104,6 +107,52 @@ const createGitHubIssue = async (title, body, labels = []) => {
   }
 };
 
+// Docker operations
+const executeDockerCommand = async (command) => {
+  try {
+    console.log(`Executing Docker command: ${command}`);
+    const { stdout, stderr } = await execAsync(command);
+    
+    if (stderr && !stderr.includes('WARNING')) {
+      console.error('Docker command stderr:', stderr);
+    }
+    
+    return {
+      success: true,
+      output: stdout,
+      error: stderr
+    };
+  } catch (error) {
+    console.error('Docker command failed:', error.message);
+    return {
+      success: false,
+      output: '',
+      error: error.message
+    };
+  }
+};
+
+// Git operations
+const executeGitCommand = async (command) => {
+  try {
+    console.log(`Executing Git command: ${command}`);
+    const { stdout, stderr } = await execAsync(command);
+    
+    return {
+      success: true,
+      output: stdout,
+      error: stderr
+    };
+  } catch (error) {
+    console.error('Git command failed:', error.message);
+    return {
+      success: false,
+      output: '',
+      error: error.message
+    };
+  }
+};
+
 // Data persistence
 const saveConversation = async (conversation) => {
   try {
@@ -179,6 +228,49 @@ const getNetworkStatus = async () => {
   return status;
 };
 
+// Get Docker stack status
+const getStackStatus = async () => {
+  try {
+    const result = await executeDockerCommand('docker-compose ps --format json');
+    
+    if (!result.success) {
+      return {
+        mainnet: false,
+        testnet: false,
+        explorer: false,
+        website: false,
+        ceo: false
+      };
+    }
+
+    // Parse container status
+    const containers = result.output.split('\n').filter(line => line.trim()).map(line => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter(Boolean);
+
+    return {
+      mainnet: containers.some(c => c.Service === 'afro-validator' && c.State === 'running'),
+      testnet: containers.some(c => c.Service === 'afro-testnet-validator' && c.State === 'running'),
+      explorer: containers.some(c => (c.Service === 'afro-explorer' || c.Service === 'afro-testnet-explorer') && c.State === 'running'),
+      website: containers.some(c => c.Service === 'afro-web' && c.State === 'running'),
+      ceo: containers.some(c => c.Service === 'ceo' && c.State === 'running')
+    };
+  } catch (error) {
+    console.error('Failed to get stack status:', error.message);
+    return {
+      mainnet: false,
+      testnet: false,
+      explorer: false,
+      website: false,
+      ceo: false
+    };
+  }
+};
+
 // API Routes
 app.get('/health', (req, res) => {
   res.json({ 
@@ -233,6 +325,118 @@ app.post('/api/chat', async (req, res) => {
   } catch (error) {
     console.error('Chat error:', error.message);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Stack operation endpoint
+app.post('/api/ceo/stack-operation', async (req, res) => {
+  try {
+    const { operation, mode, services } = req.body;
+    
+    if (!operation || !['start', 'stop', 'restart'].includes(operation)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid operation. Must be start, stop, or restart' 
+      });
+    }
+
+    console.log(`Stack operation: ${operation} with mode: ${mode} and services: ${services?.join(', ')}`);
+
+    let command;
+    switch (operation) {
+      case 'start':
+        if (services && services.length > 0) {
+          command = `docker-compose up -d ${services.join(' ')}`;
+        } else {
+          command = 'docker-compose up -d';
+        }
+        break;
+      case 'stop':
+        if (services && services.length > 0) {
+          command = `docker-compose stop ${services.join(' ')}`;
+        } else {
+          command = 'docker-compose down';
+        }
+        break;
+      case 'restart':
+        if (services && services.length > 0) {
+          command = `docker-compose restart ${services.join(' ')}`;
+        } else {
+          command = 'docker-compose restart';
+        }
+        break;
+    }
+
+    const result = await executeDockerCommand(command);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? `Stack ${operation} completed` : result.error,
+      output: result.output,
+      services: services
+    });
+
+  } catch (error) {
+    console.error('Stack operation error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
+// Git operation endpoint
+app.post('/api/ceo/git-operation', async (req, res) => {
+  try {
+    const { operation } = req.body;
+    
+    if (!operation || !['clone', 'pull', 'build'].includes(operation)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid operation. Must be clone, pull, or build' 
+      });
+    }
+
+    console.log(`Git operation: ${operation}`);
+
+    let command;
+    switch (operation) {
+      case 'clone':
+        command = 'git clone https://github.com/afro-network/afro-blockchain.git /tmp/afro-blockchain || true';
+        break;
+      case 'pull':
+        command = 'cd /tmp/afro-blockchain && git pull origin main';
+        break;
+      case 'build':
+        command = 'docker-compose build --no-cache';
+        break;
+    }
+
+    const result = await executeGitCommand(command);
+    
+    res.json({
+      success: result.success,
+      message: result.success ? `Git ${operation} completed` : result.error,
+      output: result.output
+    });
+
+  } catch (error) {
+    console.error('Git operation error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error' 
+    });
+  }
+});
+
+// Stack status endpoint
+app.get('/api/ceo/stack-status', async (req, res) => {
+  try {
+    const status = await getStackStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Stack status error:', error.message);
+    res.status(500).json({ error: 'Failed to get stack status' });
   }
 });
 

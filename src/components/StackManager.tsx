@@ -1,11 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { 
   Settings, 
@@ -20,6 +19,8 @@ import {
   GitPullRequest,
   Wrench
 } from "lucide-react";
+import { stackAPI, type StackOperation, type GitOperation } from "@/services/stackAPI";
+import { toast } from "sonner";
 
 interface StackStatus {
   mainnet: boolean;
@@ -81,53 +82,66 @@ const StackManager = () => {
     }
   ];
 
-  const executeStackOperation = async (operation: string, mode?: string) => {
+  // Load stack status on component mount
+  useEffect(() => {
+    loadStackStatus();
+  }, []);
+
+  const loadStackStatus = async () => {
+    try {
+      const status = await stackAPI.getStackStatus();
+      setStackStatus(status);
+    } catch (error) {
+      console.error('Failed to load stack status:', error);
+      toast.error('Failed to load stack status');
+    }
+  };
+
+  const executeStackOperation = async (operation: 'start' | 'stop' | 'restart', mode?: string) => {
     setIsOperating(true);
     
     try {
-      const response = await fetch('/api/stack-manager', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          operation, 
-          mode: mode || selectedMode,
-          services: operationModes.find(m => m.id === (mode || selectedMode))?.services || []
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log(`Stack operation ${operation} completed:`, result);
+      const operationMode = mode || selectedMode;
+      const services = operationModes.find(m => m.id === operationMode)?.services || [];
       
-      // Update stack status based on operation
-      if (operation === 'start') {
-        const mode = operationModes.find(m => m.id === selectedMode);
-        if (mode) {
+      const stackOperation: StackOperation = {
+        operation,
+        mode: operationMode,
+        services
+      };
+
+      const result = await stackAPI.executeStackOperation(stackOperation);
+      
+      if (result.success) {
+        // Update stack status based on operation
+        if (operation === 'start') {
+          const mode = operationModes.find(m => m.id === selectedMode);
+          if (mode) {
+            setStackStatus({
+              mainnet: mode.services.includes('afro-validator'),
+              testnet: mode.services.includes('afro-testnet-validator'),
+              explorer: mode.services.includes('afro-explorer') || mode.services.includes('afro-testnet-explorer'),
+              website: mode.services.includes('afro-web'),
+              ceo: mode.services.includes('ceo')
+            });
+          }
+        } else if (operation === 'stop') {
           setStackStatus({
-            mainnet: mode.services.includes('afro-validator'),
-            testnet: mode.services.includes('afro-testnet-validator'),
-            explorer: mode.services.includes('afro-explorer') || mode.services.includes('afro-testnet-explorer'),
-            website: mode.services.includes('afro-web'),
-            ceo: mode.services.includes('ceo')
+            mainnet: false,
+            testnet: false,
+            explorer: false,
+            website: false,
+            ceo: false
           });
         }
-      } else if (operation === 'stop') {
-        setStackStatus({
-          mainnet: false,
-          testnet: false,
-          explorer: false,
-          website: false,
-          ceo: false
-        });
+        
+        // Reload status after a delay
+        setTimeout(loadStackStatus, 2000);
       }
       
     } catch (error) {
       console.error(`Stack operation ${operation} failed:`, error);
+      toast.error(`Stack operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsOperating(false);
     }
@@ -137,20 +151,12 @@ const StackManager = () => {
     setIsOperating(true);
     
     try {
-      const response = await fetch('/api/git-operations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ operation }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      const gitOperation: GitOperation = { operation };
+      const result = await stackAPI.executeGitOperation(gitOperation);
+      
+      if (result.success) {
+        console.log(`Git operation ${operation} completed successfully`);
       }
-
-      const result = await response.json();
-      console.log(`Git operation ${operation} completed:`, result);
       
     } catch (error) {
       console.error(`Git operation ${operation} failed:`, error);
@@ -215,7 +221,7 @@ const StackManager = () => {
               className="flex items-center gap-2"
             >
               <Play className="h-4 w-4" />
-              Start Stack
+              {isOperating ? 'Starting...' : 'Start Stack'}
             </Button>
             <Button 
               variant="destructive"
@@ -224,7 +230,7 @@ const StackManager = () => {
               className="flex items-center gap-2"
             >
               <Square className="h-4 w-4" />
-              Stop Stack
+              {isOperating ? 'Stopping...' : 'Stop Stack'}
             </Button>
             <Button 
               variant="outline"
@@ -233,7 +239,16 @@ const StackManager = () => {
               className="flex items-center gap-2"
             >
               <RotateCcw className="h-4 w-4" />
-              Restart Stack
+              {isOperating ? 'Restarting...' : 'Restart Stack'}
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={loadStackStatus}
+              disabled={isOperating}
+              className="flex items-center gap-2"
+            >
+              <Activity className="h-4 w-4" />
+              Refresh Status
             </Button>
           </div>
           
@@ -285,7 +300,7 @@ const StackManager = () => {
               className="flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
-              Clone Repository
+              {isOperating ? 'Cloning...' : 'Clone Repository'}
             </Button>
             <Button 
               variant="outline"
@@ -294,7 +309,7 @@ const StackManager = () => {
               className="flex items-center gap-2"
             >
               <Upload className="h-4 w-4" />
-              Pull Updates
+              {isOperating ? 'Pulling...' : 'Pull Updates'}
             </Button>
             <Button 
               onClick={() => executeGitOperation('build')}
@@ -302,7 +317,7 @@ const StackManager = () => {
               className="flex items-center gap-2"
             >
               <Wrench className="h-4 w-4" />
-              Build Containers
+              {isOperating ? 'Building...' : 'Build Containers'}
             </Button>
           </div>
           
