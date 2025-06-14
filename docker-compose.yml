@@ -150,6 +150,38 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # CEO Management Agent
+  ceo:
+    build: ./ceo
+    container_name: afro-ceo
+    ports:
+      - "3000:3000"
+    depends_on:
+      - afro-validator
+      - afro-testnet-validator
+      - afro-explorer
+      - afro-testnet-explorer
+    environment:
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO:-afro-network/afro-blockchain}
+      - MAINNET_RPC_URL=http://afro-validator:8545
+      - TESTNET_RPC_URL=http://afro-testnet-validator:8547
+      - MAINNET_EXPLORER_URL=http://afro-explorer:4000
+      - TESTNET_EXPLORER_URL=http://afro-testnet-explorer:4001
+      - NODE_ENV=production
+    volumes:
+      - ceo_data:/app/data
+    networks:
+      - afro-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
 networks:
   afro-network:
     driver: bridge
@@ -159,3 +191,4 @@ volumes:
   db_data:
   testnet_validator_data:
   testnet_db_data:
+  ceo_data:

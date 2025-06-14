@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Afro Network Docker Stack Setup Script
@@ -58,6 +59,12 @@ ETHEREUM_JSONRPC_WS_URL=ws://afro-validator:8546
 TESTNET_ETHEREUM_JSONRPC_HTTP_URL=http://afro-testnet-validator:8547
 TESTNET_ETHEREUM_JSONRPC_WS_URL=ws://afro-testnet-validator:8548
 
+# CEO Agent Configuration
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.1:8b
+GITHUB_TOKEN=
+GITHUB_REPO=afro-network/afro-blockchain
+
 # Ports (modify if needed)
 VALIDATOR_HTTP_PORT=8545
 VALIDATOR_WS_PORT=8546
@@ -68,8 +75,9 @@ TESTNET_VALIDATOR_P2P_PORT=30304
 EXPLORER_PORT=4000
 TESTNET_EXPLORER_PORT=4001
 WEB_PORT=80
+CEO_PORT=3000
 EOF
-    echo "✅ .env file created with mobile money support"
+    echo "✅ .env file created with mobile money support and CEO agent configuration"
 fi
 
 # Function to check if container exists and get its image ID
@@ -125,6 +133,10 @@ needs_rebuild() {
         rebuild_needed=true
     fi
     
+    if ! check_container_image "afro-ceo" "ceo"; then
+        rebuild_needed=true
+    fi
+    
     # Database containers don't need rebuild checks as they use base images
     
     if [ "$rebuild_needed" = true ]; then
@@ -151,7 +163,7 @@ docker-compose up -d
 
 # Wait for services to be ready
 echo "⏳ Waiting for services to start..."
-sleep 10
+sleep 15
 
 # Check service health
 echo "🔍 Checking service health..."
@@ -191,6 +203,13 @@ else
     echo "⚠️  Web frontend is not responding yet"
 fi
 
+# Check CEO agent
+if curl -s http://localhost:3000/health > /dev/null; then
+    echo "✅ CEO agent is running (http://localhost:3000)"
+else
+    echo "⚠️  CEO agent is not responding yet"
+fi
+
 echo ""
 echo "🎉 Afro Network setup complete!"
 echo ""
@@ -202,6 +221,20 @@ echo "   • Mainnet RPC: http://localhost:8545"
 echo "   • Testnet RPC: http://localhost:8547"
 echo "   • Mainnet WebSocket: ws://localhost:8546"
 echo "   • Testnet WebSocket: ws://localhost:8548"
+echo "   • CEO Agent API: http://localhost:3000"
+echo ""
+echo "🤖 CEO Agent Integration:"
+echo "   • Strategic Management: AI-powered network oversight"
+echo "   • Customer Support: Automated question handling"
+echo "   • GitHub Integration: Automatic issue creation and PR management"
+echo "   • Network Monitoring: Continuous health checks with alerting"
+echo "   • Chat API: http://localhost:3000/api/chat"
+echo "   • Status API: http://localhost:3000/api/status"
+echo ""
+echo "⚙️  CEO Agent Configuration:"
+echo "   • Ollama URL: Configure OLLAMA_BASE_URL in .env"
+echo "   • Model: Configure OLLAMA_MODEL in .env (default: llama3.1:8b)"
+echo "   • GitHub: Set GITHUB_TOKEN and GITHUB_REPO in .env for automation"
 echo ""
 echo "📱 Mobile Money Integration:"
 echo "   • Address Format: afro:254700000000:[extra_characters]"
@@ -226,16 +259,18 @@ echo "   • Currency: tAFRO"
 echo "   • Explorer: http://localhost:4001"
 echo ""
 echo "📖 Next Steps:"
-echo "   1. Visit http://localhost to see the landing page"
-echo "   2. Click 'Add Mainnet to MetaMask' or 'Add Testnet to MetaMask'"
-echo "   3. Explore the blockchain at http://localhost:4000 (mainnet) or http://localhost:4001 (testnet)"
-echo "   4. Test mobile money address format: afro:254700000000:[your_hex_chars]"
+echo "   1. Configure CEO Agent: Edit .env file with your Ollama and GitHub settings"
+echo "   2. Visit http://localhost to see the landing page"
+echo "   3. Test CEO Agent: curl -X POST http://localhost:3000/api/chat -H 'Content-Type: application/json' -d '{\"message\":\"What is the current network status?\"}'"
+echo "   4. Click 'Add Mainnet to MetaMask' or 'Add Testnet to MetaMask'"
+echo "   5. Explore the blockchain at http://localhost:4000 (mainnet) or http://localhost:4001 (testnet)"
 echo ""
 echo "🔧 Management Commands:"
 echo "   • View logs: docker-compose logs -f"
+echo "   • View CEO logs: docker-compose logs -f ceo"
 echo "   • Stop services: docker-compose down"
 echo "   • Restart services: docker-compose restart"
 echo "   • Update: docker-compose pull && docker-compose up -d"
 echo "   • Force rebuild: docker-compose build --no-cache && docker-compose up -d"
 echo ""
-echo "Enjoy your Afro Network with Mobile Money integration! 🌍📱"
+echo "Enjoy your Afro Network with AI-powered CEO Agent! 🌍📱🤖"
