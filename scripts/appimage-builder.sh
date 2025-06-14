@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # AppImage builder for Afro Network
@@ -215,6 +216,105 @@ ensure_node_v18() {
     fi
 }
 
+build_react_app() {
+    echo "🔨 Building React application with Node.js v$(node -v | cut -d'v' -f2)..."
+    
+    # Remove existing dist directory to ensure clean build
+    if [ -d "dist" ]; then
+        echo "🧹 Cleaning existing dist directory..."
+        rm -rf dist
+    fi
+    
+    build_success=false
+    
+    # Strategy 1: Try with available package manager
+    if command -v bun &> /dev/null; then
+        echo "📦 Attempting build with bun..."
+        if bun run build; then
+            build_success=true
+            echo "✅ Build succeeded with bun and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+    elif command -v npm &> /dev/null; then
+        echo "📦 Attempting build with npm..."
+        if npm run build; then
+            build_success=true
+            echo "✅ Build succeeded with npm and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+    elif command -v yarn &> /dev/null; then
+        echo "📦 Attempting build with yarn..."
+        if yarn build; then
+            build_success=true
+            echo "✅ Build succeeded with yarn and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+    fi
+    
+    # Strategy 2: Try with node polyfills if normal build failed
+    if [ "$build_success" = false ] && command -v npm &> /dev/null; then
+        echo "📦 Attempting build with node polyfills..."
+        
+        # Install vite-plugin-node-polyfills if not present
+        if ! npm list vite-plugin-node-polyfills &>/dev/null; then
+            echo "Installing vite-plugin-node-polyfills..."
+            npm install --save-dev vite-plugin-node-polyfills
+        fi
+        
+        # Create a temporary vite config that includes node polyfills
+        cat > vite.config.temp.ts << 'VITE_EOF'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
+import { componentTagger } from "lovable-tagger";
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
+
+export default defineConfig(({ mode }) => ({
+  server: {
+    host: "::",
+    port: 8080,
+  },
+  plugins: [
+    react(),
+    nodePolyfills({
+      protocolImports: true,
+    }),
+    mode === 'development' &&
+    componentTagger(),
+  ].filter(Boolean),
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+}));
+VITE_EOF
+        
+        # Try building with the temporary config
+        if npx vite build --config vite.config.temp.ts; then
+            build_success=true
+            echo "✅ Build succeeded with node polyfills and Node.js v$(node -v | cut -d'v' -f2)"
+        fi
+        
+        # Clean up temporary config
+        rm -f vite.config.temp.ts
+    fi
+    
+    # If all strategies failed, exit with error
+    if [ "$build_success" = false ]; then
+        echo "❌ All build strategies failed with Node.js v$(node -v | cut -d'v' -f2)."
+        echo "💡 Try running 'npm run build' manually to see the full error output."
+        echo "🔧 Ensure you're using Node.js v18+ for crypto compatibility."
+        exit 1
+    fi
+    
+    # Verify dist directory was created with files
+    if [ ! -d "dist" ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
+        echo "❌ Build completed but dist directory is missing or empty"
+        echo "💡 Check if the build process completed successfully"
+        exit 1
+    fi
+    
+    echo "✅ React app built successfully - dist directory created with $(ls dist | wc -l) files"
+}
+
 build_appimage() {
     echo "🚀 Building Afro Network AppImage..."
     
@@ -226,6 +326,9 @@ build_appimage() {
     
     # Install dependencies
     install_dependencies
+    
+    # Build the React app first
+    build_react_app
     
     # Check if AppImageTool is available
     if ! command -v appimagetool &> /dev/null; then
@@ -272,6 +375,10 @@ build_appimage() {
     # Copy application files
     echo "📄 Copying application files..."
     
+    # Copy built React app to AppDir root
+    echo "📦 Copying built React app ($(ls dist | wc -l) files)..."
+    cp -r dist/* AppDir/
+    
     # Create the main executable script
     cat > AppDir/usr/bin/afro-network << 'EOF'
 #!/bin/bash
@@ -280,8 +387,8 @@ export PATH="${APPDIR}/usr/bin:${PATH}"
 
 # Start the React dashboard
 cd "${APPDIR}"
-if [ -f "dist/index.html" ]; then
-    python3 -m http.server 8080 -d dist &
+if [ -f "index.html" ]; then
+    python3 -m http.server 8080 &
     SERVER_PID=$!
     
     # Wait a moment for server to start
@@ -301,7 +408,9 @@ if [ -f "dist/index.html" ]; then
     # Keep the server running
     wait $SERVER_PID
 else
-    echo "Dashboard files not found. Please build the project first."
+    echo "Dashboard files not found at: ${APPDIR}"
+    echo "Contents of AppDir:"
+    ls -la "${APPDIR}"
     exit 1
 fi
 EOF
@@ -345,87 +454,6 @@ EOF
     # Copy icon to root
     cp AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png AppDir/
     
-    # Build the project first if dist doesn't exist
-    if [ ! -d "dist" ]; then
-        echo "🔨 Building React application with Node.js v$(node -v | cut -d'v' -f2)..."
-        
-        build_success=false
-        
-        # Strategy 1: Try with node polyfills plugin (using Node v18+)
-        echo "📦 Attempting build with node polyfills..."
-        if command -v npm &> /dev/null; then
-            # Create a temporary vite config that includes node polyfills
-            cat > vite.config.temp.ts << 'VITE_EOF'
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
-
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [
-    react(),
-    nodePolyfills({
-      protocolImports: true,
-    }),
-    mode === 'development' &&
-    componentTagger(),
-  ].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-}));
-VITE_EOF
-            
-            # Try building with the temporary config
-            if npx vite build --config vite.config.temp.ts; then
-                build_success=true
-                echo "✅ Build succeeded with node polyfills and Node.js v$(node -v | cut -d'v' -f2)"
-            fi
-            
-            # Clean up temporary config
-            rm -f vite.config.temp.ts
-        fi
-        
-        # Strategy 2: Try normal build if polyfill didn't work or npm not present
-        if [ "$build_success" = false ]; then
-            echo "📦 Attempting normal build with Node.js v$(node -v | cut -d'v' -f2)..."
-            if command -v bun &> /dev/null; then
-                echo "Using bun to build..."
-                if bun run build; then
-                    build_success=true
-                fi
-            elif command -v npm &> /dev/null; then
-                echo "Using npm to build..."
-                if npm run build; then
-                    build_success=true
-                fi
-            elif command -v yarn &> /dev/null; then
-                echo "Using yarn to build..."
-                if yarn build; then
-                    build_success=true
-                fi
-            fi
-        fi
-        
-        # If all strategies failed, exit with error
-        if [ "$build_success" = false ]; then
-            echo "❌ All build strategies failed with Node.js v$(node -v | cut -d'v' -f2)."
-            echo "💡 Try running 'npm run build' manually to see the full error output."
-            echo "🔧 Ensure you're using Node.js v18+ for crypto compatibility."
-            exit 1
-        fi
-    fi
-    
-    # Copy built React app
-    cp -r dist/* AppDir/
-    
     # Build AppImage with proper architecture
     echo "🔨 Building AppImage for architecture: $ARCH..."
     ARCH=$ARCH appimagetool AppDir AfroNetwork.AppImage
@@ -441,6 +469,7 @@ VITE_EOF
         echo "   • Double-click to launch or run from terminal"
         echo "   • Built with Node.js v$(node -v | cut -d'v' -f2)"
         echo "   • Architecture: $ARCH"
+        echo "   • Dashboard files: $(ls AppDir/*.html AppDir/*.js AppDir/*.css 2>/dev/null | wc -l) files included"
         echo ""
         echo "🚀 To use the AppImage:"
         echo "   1. Make it executable: chmod +x AfroNetwork.AppImage"
