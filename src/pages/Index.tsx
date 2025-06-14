@@ -1,9 +1,11 @@
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NetworkStats from "@/components/NetworkStats";
 import AddressGenerationStats from "@/components/AddressGenerationStats";
 import ValidatorNodeInfo from "@/components/ValidatorNodeInfo";
-import { Activity, Network, Phone, Server } from "lucide-react";
+import DockerCLI from "@/components/DockerCLI";
+import { Activity, Network, Phone, Server, Terminal } from "lucide-react";
 import DarkModeSwitch from "@/components/DarkModeSwitch";
 
 const Index = () => {
@@ -24,7 +26,7 @@ const Index = () => {
         </div>
 
         <Tabs defaultValue="network" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="network" className="flex items-center gap-2">
               <Network className="h-4 w-4" />
               Network
@@ -36,6 +38,10 @@ const Index = () => {
             <TabsTrigger value="validator" className="flex items-center gap-2">
               <Server className="h-4 w-4" />
               Validator
+            </TabsTrigger>
+            <TabsTrigger value="cli" className="flex items-center gap-2">
+              <Terminal className="h-4 w-4" />
+              CLI
             </TabsTrigger>
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
@@ -67,6 +73,10 @@ const Index = () => {
 
           <TabsContent value="validator" className="space-y-6">
             <ValidatorNodeInfo />
+          </TabsContent>
+
+          <TabsContent value="cli" className="space-y-6">
+            <DockerCLI />
           </TabsContent>
 
           <TabsContent value="logs" className="space-y-6">
