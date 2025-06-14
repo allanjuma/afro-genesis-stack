@@ -4,8 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import NetworkStats from "@/components/NetworkStats";
 import AddressGenerationStats from "@/components/AddressGenerationStats";
 import ValidatorNodeInfo from "@/components/ValidatorNodeInfo";
-import DockerCLI from "@/components/DockerCLI";
-import { Activity, Network, Phone, Server, Terminal } from "lucide-react";
+import StackManager from "@/components/StackManager";
+import { Activity, Network, Phone, Server, Settings } from "lucide-react";
 import DarkModeSwitch from "@/components/DarkModeSwitch";
 
 const Index = () => {
@@ -39,9 +39,9 @@ const Index = () => {
               <Server className="h-4 w-4" />
               Validator
             </TabsTrigger>
-            <TabsTrigger value="cli" className="flex items-center gap-2">
-              <Terminal className="h-4 w-4" />
-              CLI
+            <TabsTrigger value="stack" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Stack Manager
             </TabsTrigger>
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
@@ -75,8 +75,8 @@ const Index = () => {
             <ValidatorNodeInfo />
           </TabsContent>
 
-          <TabsContent value="cli" className="space-y-6">
-            <DockerCLI />
+          <TabsContent value="stack" className="space-y-6">
+            <StackManager />
           </TabsContent>
 
           <TabsContent value="logs" className="space-y-6">
