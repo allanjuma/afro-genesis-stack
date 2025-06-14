@@ -12,7 +12,7 @@ interface AddressGeneration {
   msisdn: string;
   status: 'pending' | 'completed' | 'failed';
   attempts: number;
-  timestamp: Date;
+  timestamp: Date | string;
   address?: string;
   validationSent: boolean;
 }
@@ -32,7 +32,13 @@ const AddressGenerationStats = () => {
       try {
         const response = await fetch('/api/validator/address-stats');
         if (response.ok) {
-          return await response.json();
+          const data = await response.json();
+          // Convert timestamp strings back to Date objects
+          data.recentGenerations = data.recentGenerations.map((gen: any) => ({
+            ...gen,
+            timestamp: new Date(gen.timestamp)
+          }));
+          return data;
         }
       } catch (error) {
         console.log('API not available, using mock data for display');
@@ -130,6 +136,11 @@ const AddressGenerationStats = () => {
     }
   };
 
+  const formatTimestamp = (timestamp: Date | string) => {
+    const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+    return date.toLocaleTimeString();
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -204,7 +215,7 @@ const AddressGenerationStats = () => {
                   <TableCell className="font-mono">{gen.msisdn}</TableCell>
                   <TableCell>{getStatusBadge(gen.status)}</TableCell>
                   <TableCell>{gen.attempts.toLocaleString()}</TableCell>
-                  <TableCell>{gen.timestamp.toLocaleTimeString()}</TableCell>
+                  <TableCell>{formatTimestamp(gen.timestamp)}</TableCell>
                   <TableCell>
                     {gen.validationSent ? (
                       <CheckCircle className="h-4 w-4 text-green-500" />
