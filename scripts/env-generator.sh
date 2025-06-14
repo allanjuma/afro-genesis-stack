@@ -18,6 +18,12 @@ COIN_NAME=Afro
 NETWORK_NAME=Afro Network
 SUBNETWORK=Afro Mainnet
 
+# P2P Bootstrap Configuration
+AFRO_MAINNET_BOOTSTRAP=afro-mainnet.bitsoko.org
+AFRO_TESTNET_BOOTSTRAP=afro-testnet.bitsoko.org
+AFRO_BOOTSTRAP_PORT_MAINNET=30303
+AFRO_BOOTSTRAP_PORT_TESTNET=30304
+
 # Mobile Money Integration
 AFRO_MOBILE_MONEY_ENABLED=true
 AFRO_SMS_VALIDATION=true
@@ -64,6 +70,6 @@ TESTNET_EXPLORER_PORT=4001
 WEB_PORT=80
 CEO_PORT=3000
 EOF
-        echo "✅ .env file created with mobile money support and CEO agent configuration"
+        echo "✅ .env file created with P2P bootstrap configuration for shared mempool functionality"
     fi
 }

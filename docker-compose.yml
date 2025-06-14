@@ -17,6 +17,8 @@ services:
     environment:
       - NETWORK_ID=7878
       - CHAIN_ID=7878
+      - AFRO_BOOTSTRAP_DOMAIN=${AFRO_MAINNET_BOOTSTRAP:-afro-mainnet.bitsoko.org}
+      - AFRO_BOOTSTRAP_PORT=${AFRO_BOOTSTRAP_PORT_MAINNET:-30303}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8545"]
       interval: 30s
@@ -84,6 +86,8 @@ services:
     environment:
       - NETWORK_ID=7879
       - CHAIN_ID=7879
+      - AFRO_BOOTSTRAP_DOMAIN=${AFRO_TESTNET_BOOTSTRAP:-afro-testnet.bitsoko.org}
+      - AFRO_BOOTSTRAP_PORT=${AFRO_BOOTSTRAP_PORT_TESTNET:-30304}
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8547"]
       interval: 30s

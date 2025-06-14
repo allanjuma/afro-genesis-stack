@@ -9,6 +9,10 @@ export AFRO_SMS_API_URL="http://localhost:3001/sms"
 export AFRO_SMS_TIMEOUT=30
 export AFRO_NETWORK_TYPE="testnet"
 
+# P2P Bootstrap Configuration
+export AFRO_BOOTSTRAP_DOMAIN="afro-testnet.bitsoko.org"
+export AFRO_BOOTSTRAP_PORT=30304
+
 # Global array to track new addresses for block inclusion
 declare -a NEW_ADDRESSES_PENDING=()
 
@@ -175,6 +179,7 @@ echo "SMS Validation: ${AFRO_SMS_VALIDATION}"
 echo "Transaction Fee Validation: ${AFRO_NETWORK_TYPE} (bypassed)"
 echo "Address Generation: Brute-force search enabled"
 echo "Block Address Tracking: Enabled"
+echo "Bootstrap Domain: ${AFRO_BOOTSTRAP_DOMAIN}:${AFRO_BOOTSTRAP_PORT}"
 
 # Example address generation for testing
 echo "Testing testnet address generation..."
@@ -185,7 +190,7 @@ else
     echo "Test testnet address generation failed"
 fi
 
-# Start geth with all necessary configurations for testnet
+# Start geth with P2P networking and bootstrap configuration for testnet
 exec geth \
     --networkid 7879 \
     --datadir /root/.ethereum \
@@ -200,12 +205,13 @@ exec geth \
     --ws.origins "*" \
     --ws.api "eth,net,web3,personal,admin,miner,afro" \
     --port 30304 \
+    --bootnodes "enode://afro-testnet.bitsoko.org:30304" \
+    --syncmode "full" \
+    --maxpeers 25 \
     --mine \
     --miner.threads 1 \
     --miner.etherbase 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
     --unlock 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
     --password /dev/null \
     --allow-insecure-unlock \
-    --nodiscover \
-    --maxpeers 0 \
     --verbosity 3

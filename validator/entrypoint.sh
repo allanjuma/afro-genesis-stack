@@ -17,6 +17,10 @@ export AFRO_SMS_API_URL="http://localhost:3001/sms"
 export AFRO_SMS_TIMEOUT=30
 export AFRO_NETWORK_TYPE="mainnet"
 
+# P2P Bootstrap Configuration
+export AFRO_BOOTSTRAP_DOMAIN="afro-mainnet.bitsoko.org"
+export AFRO_BOOTSTRAP_PORT=30303
+
 # Initialize address tracking and reward files
 mkdir -p /root/.ethereum
 touch /root/.ethereum/pending_addresses.txt
@@ -40,6 +44,7 @@ echo "Transaction Fee Validation: ${AFRO_NETWORK_TYPE}"
 echo "Address Generation Reward: 10 AFRO per valid address"
 echo "Validator Address: ${AFRO_VALIDATOR_ADDRESS}"
 echo "Block Address Tracking: Enabled"
+echo "Bootstrap Domain: ${AFRO_BOOTSTRAP_DOMAIN}:${AFRO_BOOTSTRAP_PORT}"
 
 # Example address generation for testing
 echo "Testing address generation with rewards..."
@@ -58,7 +63,7 @@ on_new_block() {
     include_addresses_in_block "$block_number"
 }
 
-# Start geth with all necessary configurations
+# Start geth with P2P networking and bootstrap configuration
 exec geth \
     --networkid 7878 \
     --datadir /root/.ethereum \
@@ -73,13 +78,13 @@ exec geth \
     --ws.origins "*" \
     --ws.api "eth,net,web3,personal,admin,miner,afro" \
     --port 30303 \
+    --bootnodes "enode://afro-mainnet.bitsoko.org:30303" \
+    --syncmode "full" \
+    --maxpeers 25 \
     --mine \
     --miner.threads 1 \
     --miner.etherbase 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
     --unlock 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
     --password /dev/null \
     --allow-insecure-unlock \
-    --nodiscover \
-    --maxpeers 0 \
     --verbosity 3
-
