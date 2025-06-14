@@ -2,8 +2,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Phone, Hash, Clock, CheckCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Phone, Hash, Clock, CheckCircle, Plus } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
 
 interface AddressGeneration {
   id: string;
@@ -16,6 +18,8 @@ interface AddressGeneration {
 }
 
 const AddressGenerationStats = () => {
+  const queryClient = useQueryClient();
+
   const { data: generationStats, isLoading } = useQuery({
     queryKey: ['addressGenerationStats'],
     queryFn: async (): Promise<{
@@ -24,7 +28,17 @@ const AddressGenerationStats = () => {
       avgAttempts: number;
       recentGenerations: AddressGeneration[];
     }> => {
-      // Mock data for development
+      // Fetch from validator API
+      try {
+        const response = await fetch('/api/validator/address-stats');
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (error) {
+        console.log('API not available, using mock data for display');
+      }
+
+      // Fallback mock data
       return {
         totalGenerated: 1247,
         pendingGenerations: 3,
@@ -62,6 +76,43 @@ const AddressGenerationStats = () => {
     refetchInterval: 3000
   });
 
+  const generateAddressMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/validator/generate-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          msisdn: '254000000000'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate address');
+      }
+
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Address Generation Started",
+        description: `Generating address for 254000000000. This may take several minutes.`,
+      });
+      
+      // Refresh the stats
+      queryClient.invalidateQueries({ queryKey: ['addressGenerationStats'] });
+    },
+    onError: (error) => {
+      console.error('Address generation error:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Could not start address generation. Validator may not be available.",
+        variant: "destructive"
+      });
+    }
+  });
+
   if (isLoading) {
     return <div className="animate-pulse">Loading address generation stats...</div>;
   }
@@ -81,6 +132,21 @@ const AddressGenerationStats = () => {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-semibold">Address Generation</h2>
+          <p className="text-sm text-muted-foreground">Generate and track Afro Network addresses</p>
+        </div>
+        <Button 
+          onClick={() => generateAddressMutation.mutate()}
+          disabled={generateAddressMutation.isPending}
+          className="flex items-center gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          {generateAddressMutation.isPending ? 'Generating...' : 'Generate Test Address'}
+        </Button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
