@@ -240,7 +240,8 @@ const AddressGenerationStats = () => {
           <CardTitle>Recent Address Generations</CardTitle>
           <CardDescription>Latest address generation requests and their status</CardDescription>
         </CardHeader>
-        <CardContent>          {!generationStats?.recentGenerations?.length ? (
+        <CardContent>
+          {!generationStats?.recentGenerations?.length ? (
             <div className="text-center py-8 text-muted-foreground">
               {isValidatorUnavailable ? 'No data available - validator service offline' : 'No recent address generations'}
             </div>
