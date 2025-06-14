@@ -1,0 +1,91 @@
+
+version: '3.8'
+
+services:
+  afro-validator:
+    build: ./validator
+    container_name: afro-validator
+    ports:
+      - "30303:30303"
+      - "8545:8545"
+      - "8546:8546"
+    volumes:
+      - validator_data:/root/.ethereum
+    networks:
+      - afro-network
+    environment:
+      - NETWORK_ID=7878
+      - CHAIN_ID=7878
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8545"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  afro-db:
+    image: postgres:14
+    container_name: afro-db
+    environment:
+      POSTGRES_DB: blockscout
+      POSTGRES_USER: blockscout
+      POSTGRES_PASSWORD: blockscout_password
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - afro-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blockscout"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  afro-explorer:
+    build: ./explorer
+    container_name: afro-explorer
+    ports:
+      - "4000:4000"
+    depends_on:
+      - afro-db
+      - afro-validator
+    environment:
+      - DATABASE_URL=postgresql://blockscout:blockscout_password@afro-db:5432/blockscout
+      - ETHEREUM_JSONRPC_VARIANT=geth
+      - ETHEREUM_JSONRPC_HTTP_URL=http://afro-validator:8545
+      - ETHEREUM_JSONRPC_WS_URL=ws://afro-validator:8546
+      - COIN=AFRO
+      - SUBNETWORK=Afro Network
+      - NETWORK=Afro
+      - LOGO=/images/afro-logo.png
+      - CHAIN_ID=7878
+    networks:
+      - afro-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  afro-web:
+    build: ./web
+    container_name: afro-web
+    ports:
+      - "80:80"
+    networks:
+      - afro-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+networks:
+  afro-network:
+    driver: bridge
+
+volumes:
+  validator_data:
+  db_data:

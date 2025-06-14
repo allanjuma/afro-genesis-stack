@@ -1,0 +1,143 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Afro Network - Next Generation Blockchain</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="images/afro-logo.png">
+</head>
+<body>
+    <header>
+        <nav>
+            <div class="container">
+                <div class="logo">
+                    <img src="images/afro-logo.png" alt="Afro Network" height="40">
+                    <span>Afro Network</span>
+                </div>
+                <ul>
+                    <li><a href="#home">Home</a></li>
+                    <li><a href="#docs">Documentation</a></li>
+                    <li><a href="http://localhost:4000" target="_blank">Explorer</a></li>
+                    <li><a href="#rpc">RPC</a></li>
+                </ul>
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <section id="home" class="hero">
+            <div class="container">
+                <h1>Welcome to Afro Network</h1>
+                <p>A fast, secure, and decentralized blockchain network built for the future.</p>
+                <div class="cta-buttons">
+                    <button onclick="addToMetaMask()" class="btn-primary">Add to MetaMask</button>
+                    <a href="http://localhost:4000" class="btn-secondary" target="_blank">Open Explorer</a>
+                </div>
+            </div>
+        </section>
+
+        <section id="network-info" class="info-section">
+            <div class="container">
+                <h2>Network Information</h2>
+                <div class="network-grid">
+                    <div class="network-card">
+                        <h3>Chain ID</h3>
+                        <p>7878</p>
+                    </div>
+                    <div class="network-card">
+                        <h3>Currency</h3>
+                        <p>AFRO</p>
+                    </div>
+                    <div class="network-card">
+                        <h3>RPC URL</h3>
+                        <p>http://localhost:8545</p>
+                    </div>
+                    <div class="network-card">
+                        <h3>Explorer</h3>
+                        <p><a href="http://localhost:4000" target="_blank">localhost:4000</a></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="docs" class="docs-section">
+            <div class="container">
+                <h2>Documentation</h2>
+                <div class="docs-grid">
+                    <div class="doc-card">
+                        <h3>Quick Start</h3>
+                        <p>Get started with Afro Network in minutes</p>
+                        <ul>
+                            <li>Add network to MetaMask</li>
+                            <li>Get test AFRO tokens</li>
+                            <li>Deploy your first contract</li>
+                        </ul>
+                    </div>
+                    <div class="doc-card">
+                        <h3>MetaMask Setup</h3>
+                        <p>Configure MetaMask for Afro Network:</p>
+                        <ul>
+                            <li><strong>Network Name:</strong> Afro Network</li>
+                            <li><strong>RPC URL:</strong> http://localhost:8545</li>
+                            <li><strong>Chain ID:</strong> 7878</li>
+                            <li><strong>Currency:</strong> AFRO</li>
+                            <li><strong>Explorer:</strong> http://localhost:4000</li>
+                        </ul>
+                    </div>
+                    <div class="doc-card">
+                        <h3>Address Format</h3>
+                        <p>Afro Network uses a unique address format:</p>
+                        <ul>
+                            <li><strong>Display:</strong> afro:abcd1234...</li>
+                            <li><strong>Compatible:</strong> 0xabcd1234... (for wallets)</li>
+                            <li>Automatically converted in explorer</li>
+                        </ul>
+                    </div>
+                    <div class="doc-card">
+                        <h3>Smart Contracts</h3>
+                        <p>Deploy and interact with smart contracts:</p>
+                        <ul>
+                            <li>Solidity compatible</li>
+                            <li>EVM-compatible execution</li>
+                            <li>Gas optimization features</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="rpc" class="rpc-section">
+            <div class="container">
+                <h2>RPC Endpoints</h2>
+                <div class="rpc-info">
+                    <div class="rpc-card">
+                        <h3>HTTP RPC</h3>
+                        <code>http://localhost:8545</code>
+                        <p>Standard JSON-RPC over HTTP</p>
+                    </div>
+                    <div class="rpc-card">
+                        <h3>WebSocket RPC</h3>
+                        <code>ws://localhost:8546</code>
+                        <p>Real-time JSON-RPC over WebSocket</p>
+                    </div>
+                    <div class="rpc-card">
+                        <h3>Proxy RPC</h3>
+                        <code>http://localhost/rpc</code>
+                        <p>CORS-enabled proxy endpoint</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2024 Afro Network. Built with ❤️ for the decentralized future.</p>
+        </div>
+    </footer>
+
+    <script src="scripts.js"></script>
+</body>
+</html>
