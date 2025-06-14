@@ -10,27 +10,33 @@ build_appimage_docker() {
     
     # Check if Docker is available
     if ! command -v docker &> /dev/null; then
-        echo "❌ Docker is not installed. Please install Docker first."
-        echo "💡 Alternatively, you can use the native build method."
-        exit 1
+        echo "❌ Docker is not installed. Falling back to native build..."
+        build_appimage_native
+        return $?
     fi
     
     # Build the Docker image
     echo "🔨 Building AppImage builder Docker image..."
-    docker build -t afro-appimage-builder -f appimage/Dockerfile .
+    if ! docker build -t afro-appimage-builder -f appimage/Dockerfile .; then
+        echo "❌ Docker image build failed. Falling back to native build..."
+        build_appimage_native
+        return $?
+    fi
     
     # Create output directory if it doesn't exist
     mkdir -p "$(pwd)"
     
     # Run the container with volume mount for output
     echo "🚀 Running AppImage build in Docker container..."
-    docker run --rm \
-        -v "$(pwd):/output" \
-        afro-appimage-builder
+    if ! docker run --rm -v "$(pwd):/output" afro-appimage-builder; then
+        echo "❌ Docker container execution failed. Falling back to native build..."
+        build_appimage_native
+        return $?
+    fi
     
     # Check if AppImage was created
     if [ -f "AfroNetwork.AppImage" ]; then
-        echo "✅ AppImage build completed successfully!"
+        echo "✅ AppImage build completed successfully with Docker!"
         echo "📱 Your AppImage is ready: ./AfroNetwork.AppImage"
         echo ""
         echo "🚀 To use the AppImage:"
@@ -38,9 +44,179 @@ build_appimage_docker() {
         echo "   2. Run it: ./AfroNetwork.AppImage"
         echo "   3. Access dashboard at http://localhost:8080"
     else
-        echo "❌ AppImage build failed - file not found"
+        echo "❌ Docker build completed but AppImage file not found. Falling back to native build..."
+        build_appimage_native
+        return $?
+    fi
+}
+
+build_appimage_native() {
+    echo "🚀 Building Afro Network AppImage (native build)..."
+    
+    # Install FUSE first
+    install_fuse
+    
+    # Ensure Node.js v18+ is being used
+    ensure_node_v18
+    
+    # Install dependencies
+    install_dependencies
+    
+    # Build the React app first
+    build_react_app
+    
+    # Check if AppImageTool is available
+    if ! command -v appimagetool &> /dev/null; then
+        echo "❌ AppImageTool is not installed. Installing..."
+        
+        # Download AppImageTool
+        wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+        chmod +x appimagetool
+        sudo mv appimagetool /usr/local/bin/
+        
+        echo "✅ AppImageTool installed successfully"
+    fi
+    
+    # Detect system architecture
+    SYSTEM_ARCH=$(uname -m)
+    case "$SYSTEM_ARCH" in
+        x86_64)
+            ARCH="x86_64"
+            ;;
+        aarch64|arm64)
+            ARCH="aarch64"
+            ;;
+        armv7l)
+            ARCH="armhf"
+            ;;
+        i686|i386)
+            ARCH="i686"
+            ;;
+        *)
+            echo "⚠️  Unknown architecture: $SYSTEM_ARCH, defaulting to x86_64"
+            ARCH="x86_64"
+            ;;
+    esac
+    
+    echo "🏗️  Detected architecture: $ARCH"
+    export ARCH
+    
+    # Create AppImage directory structure
+    echo "📁 Creating AppImage directory structure..."
+    mkdir -p AppDir/usr/bin
+    mkdir -p AppDir/usr/share/applications
+    mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+    
+    # Copy application files
+    echo "📄 Copying application files..."
+    
+    # Copy built React app to AppDir root
+    echo "📦 Copying built React app ($(ls dist | wc -l) files)..."
+    cp -r dist/* AppDir/
+    
+    # Create the main executable script
+    cat > AppDir/usr/bin/afro-network << 'EOF'
+#!/bin/bash
+APPDIR="$(dirname "$(readlink -f "${0}")")/.."
+export PATH="${APPDIR}/usr/bin:${PATH}"
+
+# Start the React dashboard
+cd "${APPDIR}"
+if [ -f "index.html" ]; then
+    python3 -m http.server 8080 &
+    SERVER_PID=$!
+    
+    # Wait a moment for server to start
+    sleep 2
+    
+    # Open browser
+    if command -v xdg-open &> /dev/null; then
+        xdg-open http://localhost:8080
+    elif command -v firefox &> /dev/null; then
+        firefox http://localhost:8080 &
+    elif command -v chromium-browser &> /dev/null; then
+        chromium-browser http://localhost:8080 &
+    else
+        echo "Dashboard available at: http://localhost:8080"
+    fi
+    
+    # Keep the server running
+    wait $SERVER_PID
+else
+    echo "Dashboard files not found at: ${APPDIR}"
+    echo "Contents of AppDir:"
+    ls -la "${APPDIR}"
+    exit 1
+fi
+EOF
+    chmod +x AppDir/usr/bin/afro-network
+    
+    # Create desktop file with single main category
+    cat > AppDir/usr/share/applications/afro-network.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=Afro Network
+Comment=Afro Network Validator Dashboard
+Exec=afro-network
+Icon=afro-network
+Categories=Development;
+StartupNotify=true
+EOF
+    
+    # Copy icon (use a default if afro logo not available)
+    if [ -f "web/site/images/afro-logo.png" ]; then
+        cp web/site/images/afro-logo.png AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png
+    else
+        # Create a simple placeholder icon
+        echo "⚠️  Afro logo not found, creating placeholder icon"
+        convert -size 256x256 xc:orange -fill white -gravity center -pointsize 48 -annotate +0+0 "AFRO" AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png 2>/dev/null || {
+            # If ImageMagick not available, copy a generic icon or create empty file
+            touch AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png
+        }
+    fi
+    
+    # Create AppRun
+    cat > AppDir/AppRun << 'EOF'
+#!/bin/bash
+APPDIR="$(dirname "$(readlink -f "${0}")")"
+exec "${APPDIR}/usr/bin/afro-network" "$@"
+EOF
+    chmod +x AppDir/AppRun
+    
+    # Copy desktop file to root
+    cp AppDir/usr/share/applications/afro-network.desktop AppDir/
+    
+    # Copy icon to root
+    cp AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png AppDir/
+    
+    # Build AppImage with proper architecture
+    echo "🔨 Building AppImage for architecture: $ARCH..."
+    ARCH=$ARCH appimagetool AppDir AfroNetwork.AppImage
+    
+    if [ -f "AfroNetwork.AppImage" ]; then
+        echo "✅ AppImage built successfully: AfroNetwork.AppImage"
+        echo "📱 You can now run: ./AfroNetwork.AppImage"
+        echo ""
+        echo "🎉 AppImage Features:"
+        echo "   • Self-contained Afro Network dashboard"
+        echo "   • Portable - runs on any Linux distribution"
+        echo "   • No installation required"
+        echo "   • Double-click to launch or run from terminal"
+        echo "   • Built with Node.js v$(node -v | cut -d'v' -f2)"
+        echo "   • Architecture: $ARCH"
+        echo "   • Dashboard files: $(ls AppDir/*.html AppDir/*.js AppDir/*.css 2>/dev/null | wc -l) files included"
+        echo ""
+        echo "🚀 To use the AppImage:"
+        echo "   1. Make it executable: chmod +x AfroNetwork.AppImage"
+        echo "   2. Run it: ./AfroNetwork.AppImage"
+        echo "   3. Access dashboard at http://localhost:8080"
+    else
+        echo "❌ AppImage build failed"
         exit 1
     fi
+    
+    # Cleanup
+    rm -rf AppDir
 }
 
 install_fuse() {
@@ -353,177 +529,12 @@ VITE_EOF
 }
 
 build_appimage() {
-    # Check if Docker is available and user prefers Docker build
+    # Try Docker build first, fallback to native if it fails
     if command -v docker &> /dev/null; then
-        echo "🐳 Docker detected. Building AppImage using Docker for consistency..."
+        echo "🐳 Docker detected. Attempting Docker build first..."
         build_appimage_docker
-        return 0
-    fi
-    
-    echo "🚀 Building Afro Network AppImage (native build)..."
-    
-    # Install FUSE first
-    install_fuse
-    
-    # Ensure Node.js v18+ is being used
-    ensure_node_v18
-    
-    # Install dependencies
-    install_dependencies
-    
-    # Build the React app first
-    build_react_app
-    
-    # Check if AppImageTool is available
-    if ! command -v appimagetool &> /dev/null; then
-        echo "❌ AppImageTool is not installed. Installing..."
-        
-        # Download AppImageTool
-        wget -O appimagetool https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-        chmod +x appimagetool
-        sudo mv appimagetool /usr/local/bin/
-        
-        echo "✅ AppImageTool installed successfully"
-    fi
-    
-    # Detect system architecture
-    SYSTEM_ARCH=$(uname -m)
-    case "$SYSTEM_ARCH" in
-        x86_64)
-            ARCH="x86_64"
-            ;;
-        aarch64|arm64)
-            ARCH="aarch64"
-            ;;
-        armv7l)
-            ARCH="armhf"
-            ;;
-        i686|i386)
-            ARCH="i686"
-            ;;
-        *)
-            echo "⚠️  Unknown architecture: $SYSTEM_ARCH, defaulting to x86_64"
-            ARCH="x86_64"
-            ;;
-    esac
-    
-    echo "🏗️  Detected architecture: $ARCH"
-    export ARCH
-    
-    # Create AppImage directory structure
-    echo "📁 Creating AppImage directory structure..."
-    mkdir -p AppDir/usr/bin
-    mkdir -p AppDir/usr/share/applications
-    mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-    
-    # Copy application files
-    echo "📄 Copying application files..."
-    
-    # Copy built React app to AppDir root
-    echo "📦 Copying built React app ($(ls dist | wc -l) files)..."
-    cp -r dist/* AppDir/
-    
-    # Create the main executable script
-    cat > AppDir/usr/bin/afro-network << 'EOF'
-#!/bin/bash
-APPDIR="$(dirname "$(readlink -f "${0}")")/.."
-export PATH="${APPDIR}/usr/bin:${PATH}"
-
-# Start the React dashboard
-cd "${APPDIR}"
-if [ -f "index.html" ]; then
-    python3 -m http.server 8080 &
-    SERVER_PID=$!
-    
-    # Wait a moment for server to start
-    sleep 2
-    
-    # Open browser
-    if command -v xdg-open &> /dev/null; then
-        xdg-open http://localhost:8080
-    elif command -v firefox &> /dev/null; then
-        firefox http://localhost:8080 &
-    elif command -v chromium-browser &> /dev/null; then
-        chromium-browser http://localhost:8080 &
     else
-        echo "Dashboard available at: http://localhost:8080"
+        echo "🔧 Docker not available. Using native build..."
+        build_appimage_native
     fi
-    
-    # Keep the server running
-    wait $SERVER_PID
-else
-    echo "Dashboard files not found at: ${APPDIR}"
-    echo "Contents of AppDir:"
-    ls -la "${APPDIR}"
-    exit 1
-fi
-EOF
-    chmod +x AppDir/usr/bin/afro-network
-    
-    # Create desktop file with single main category
-    cat > AppDir/usr/share/applications/afro-network.desktop << 'EOF'
-[Desktop Entry]
-Type=Application
-Name=Afro Network
-Comment=Afro Network Validator Dashboard
-Exec=afro-network
-Icon=afro-network
-Categories=Development;
-StartupNotify=true
-EOF
-    
-    # Copy icon (use a default if afro logo not available)
-    if [ -f "web/site/images/afro-logo.png" ]; then
-        cp web/site/images/afro-logo.png AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png
-    else
-        # Create a simple placeholder icon
-        echo "⚠️  Afro logo not found, creating placeholder icon"
-        convert -size 256x256 xc:orange -fill white -gravity center -pointsize 48 -annotate +0+0 "AFRO" AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png 2>/dev/null || {
-            # If ImageMagick not available, copy a generic icon or create empty file
-            touch AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png
-        }
-    fi
-    
-    # Create AppRun
-    cat > AppDir/AppRun << 'EOF'
-#!/bin/bash
-APPDIR="$(dirname "$(readlink -f "${0}")")"
-exec "${APPDIR}/usr/bin/afro-network" "$@"
-EOF
-    chmod +x AppDir/AppRun
-    
-    # Copy desktop file to root
-    cp AppDir/usr/share/applications/afro-network.desktop AppDir/
-    
-    # Copy icon to root
-    cp AppDir/usr/share/icons/hicolor/256x256/apps/afro-network.png AppDir/
-    
-    # Build AppImage with proper architecture
-    echo "🔨 Building AppImage for architecture: $ARCH..."
-    ARCH=$ARCH appimagetool AppDir AfroNetwork.AppImage
-    
-    if [ -f "AfroNetwork.AppImage" ]; then
-        echo "✅ AppImage built successfully: AfroNetwork.AppImage"
-        echo "📱 You can now run: ./AfroNetwork.AppImage"
-        echo ""
-        echo "🎉 AppImage Features:"
-        echo "   • Self-contained Afro Network dashboard"
-        echo "   • Portable - runs on any Linux distribution"
-        echo "   • No installation required"
-        echo "   • Double-click to launch or run from terminal"
-        echo "   • Built with Node.js v$(node -v | cut -d'v' -f2)"
-        echo "   • Architecture: $ARCH"
-        echo "   • Dashboard files: $(ls AppDir/*.html AppDir/*.js AppDir/*.css 2>/dev/null | wc -l) files included"
-        echo ""
-        echo "🚀 To use the AppImage:"
-        echo "   1. Make it executable: chmod +x AfroNetwork.AppImage"
-        echo "   2. Run it: ./AfroNetwork.AppImage"
-        echo "   3. Access dashboard at http://localhost:8080"
-    else
-        echo "❌ AppImage build failed"
-        exit 1
-    fi
-    
-    # Cleanup
-    rm -rf AppDir
 }
