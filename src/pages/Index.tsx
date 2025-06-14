@@ -1,23 +1,26 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NetworkStats from "@/components/NetworkStats";
 import AddressGenerationStats from "@/components/AddressGenerationStats";
 import ValidatorNodeInfo from "@/components/ValidatorNodeInfo";
 import { Activity, Network, Phone, Server } from "lucide-react";
+import DarkModeSwitch from "@/components/DarkModeSwitch";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-2 bg-primary/10 rounded-lg">
-            <Activity className="h-6 w-6 text-primary" />
+        <div className="flex items-center gap-3 mb-8 justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-primary/10 rounded-lg">
+              <Activity className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">Afro Network Validator Dashboard</h1>
+              <p className="text-muted-foreground">Monitor network performance and validator operations</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Afro Network Validator Dashboard</h1>
-            <p className="text-muted-foreground">Monitor network performance and validator operations</p>
-          </div>
+          <DarkModeSwitch />
         </div>
 
         <Tabs defaultValue="network" className="space-y-6">
