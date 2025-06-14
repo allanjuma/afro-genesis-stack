@@ -142,53 +142,99 @@ EOF
     if [ ! -d "dist" ]; then
         echo "🔨 Building React application..."
         
-        # Try building without legacy provider first
+        # Try different build strategies to handle crypto issues
         build_success=false
         
-        # Build with appropriate package manager
-        if command -v bun &> /dev/null; then
-            echo "Using bun to build..."
-            if bun run build; then
+        # Strategy 1: Try with crypto polyfill workaround
+        echo "📦 Attempting build with crypto polyfill..."
+        if command -v npm &> /dev/null; then
+            # Create a temporary vite config that includes crypto polyfill
+            cat > vite.config.temp.ts << 'VITE_EOF'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import path from "path";
+import { componentTagger } from "lovable-tagger";
+
+export default defineConfig(({ mode }) => ({
+  server: {
+    host: "::",
+    port: 8080,
+  },
+  plugins: [
+    react(),
+    mode === 'development' &&
+    componentTagger(),
+  ].filter(Boolean),
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  define: {
+    global: 'globalThis',
+  },
+  build: {
+    rollupOptions: {
+      external: [],
+    },
+  },
+}));
+VITE_EOF
+            
+            # Try building with the temporary config
+            if npx vite build --config vite.config.temp.ts; then
                 build_success=true
+                echo "✅ Build succeeded with crypto polyfill"
             fi
-        elif command -v npm &> /dev/null; then
-            echo "Using npm to build..."
-            if npm run build; then
-                build_success=true
-            fi
-        elif command -v yarn &> /dev/null; then
-            echo "Using yarn to build..."
-            if yarn build; then
-                build_success=true
-            fi
-        else
-            echo "❌ No package manager found. Please install npm, yarn, or bun."
-            exit 1
+            
+            # Clean up temporary config
+            rm -f vite.config.temp.ts
         fi
         
-        # If build failed, try with legacy OpenSSL support using direct node command
+        # Strategy 2: Try normal build if crypto polyfill didn't work
         if [ "$build_success" = false ]; then
-            echo "⚠️  Build failed, trying with legacy OpenSSL support..."
-            
+            echo "📦 Attempting normal build..."
             if command -v bun &> /dev/null; then
-                echo "Using bun with legacy OpenSSL..."
-                node --openssl-legacy-provider node_modules/.bin/vite build || {
-                    echo "❌ Build failed even with legacy OpenSSL support"
-                    exit 1
-                }
+                echo "Using bun to build..."
+                if bun run build; then
+                    build_success=true
+                fi
             elif command -v npm &> /dev/null; then
-                echo "Using npm with legacy OpenSSL..."
-                node --openssl-legacy-provider node_modules/.bin/vite build || {
-                    echo "❌ Build failed even with legacy OpenSSL support"
-                    exit 1
-                }
+                echo "Using npm to build..."
+                if npm run build; then
+                    build_success=true
+                fi
             elif command -v yarn &> /dev/null; then
-                echo "Using yarn with legacy OpenSSL..."
-                node --openssl-legacy-provider node_modules/.bin/yarn build || {
-                    echo "❌ Build failed even with legacy OpenSSL support"
-                    exit 1
-                }
+                echo "Using yarn to build..."
+                if yarn build; then
+                    build_success=true
+                fi
             fi
+        fi
+        
+        # Strategy 3: Try with older Node.js if available
+        if [ "$build_success" = false ]; then
+            echo "📦 Attempting build with Node.js compatibility mode..."
+            
+            # Try to use nvm to switch to Node 16 if available
+            if command -v nvm &> /dev/null; then
+                echo "Trying with Node.js 16..."
+                if nvm use 16 2>/dev/null; then
+                    if npm run build; then
+                        build_success=true
+                        echo "✅ Build succeeded with Node.js 16"
+                    fi
+                    # Switch back to default node version
+                    nvm use default 2>/dev/null || true
+                fi
+            fi
+        fi
+        
+        # If all strategies failed, exit with error
+        if [ "$build_success" = false ]; then
+            echo "❌ All build strategies failed. Please check your Node.js version and dependencies."
+            echo "💡 Try running 'npm run build' manually to see the full error output."
+            exit 1
         fi
     fi
     
