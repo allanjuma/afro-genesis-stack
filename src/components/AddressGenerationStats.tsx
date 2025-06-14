@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,13 @@ interface AddressGeneration {
   validationSent: boolean;
 }
 
+interface AddressGenerationStatsData {
+  totalGenerated: number;
+  pendingGenerations: number;
+  avgAttempts: number;
+  recentGenerations: AddressGeneration[];
+}
+
 const AddressGenerationStats = () => {
   const queryClient = useQueryClient();
 
@@ -26,12 +34,7 @@ const AddressGenerationStats = () => {
 
   const { data: generationStats, isLoading, error } = useQuery({
     queryKey: ['addressGenerationStats'],
-    queryFn: async (): Promise<{
-      totalGenerated: number;
-      pendingGenerations: number;
-      avgAttempts: number;
-      recentGenerations: AddressGeneration[];
-    }> => {
+    queryFn: async (): Promise<AddressGenerationStatsData> => {
       console.log('🔍 Fetching address generation stats from validator...');
       
       try {
@@ -178,10 +181,10 @@ const AddressGenerationStats = () => {
     return <div className="text-red-500">Error loading generation stats.</div>;
   }
 
-  const totalGenerated = generationStats.data?.totalGenerated ?? 0;
-  const pendingGenerations = generationStats.data?.pendingGenerations ?? 0;
-  const avgAttempts = generationStats.data?.avgAttempts ?? 0;
-  const recentGenerations = generationStats.data?.recentGenerations ?? [];
+  const totalGenerated = generationStats?.totalGenerated ?? 0;
+  const pendingGenerations = generationStats?.pendingGenerations ?? 0;
+  const avgAttempts = generationStats?.avgAttempts ?? 0;
+  const recentGenerations = generationStats?.recentGenerations ?? [];
 
   const getStatusBadge = (status: string, test?: boolean) => {
     if (test) {
