@@ -18,6 +18,8 @@
                 <ul>
                     <li><a href="#home">Home</a></li>
                     <li><a href="#docs">Documentation</a></li>
+                    <li><a href="#mobile-money">Mobile Money</a></li>
+                    <li><a href="#address-generation">Address Generation</a></li>
                     <li><a href="http://localhost:4000" target="_blank">Explorer</a></li>
                     <li><a href="#rpc">RPC</a></li>
                     <li><a href="faucet.html">Faucet</a></li>
@@ -86,6 +88,201 @@
                         <div class="network-card">
                             <h3>Explorer</h3>
                             <p><a href="http://localhost:4001" target="_blank">localhost:4001</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="mobile-money" class="mobile-money-section">
+            <div class="container">
+                <h2>Mobile Money Integration</h2>
+                <div class="mobile-money-content">
+                    <div class="feature-card">
+                        <h3>🏦 Address Format</h3>
+                        <p><strong>New Format:</strong> <code>afro:[MSISDN]:[extra_characters]</code></p>
+                        <ul>
+                            <li><strong>MSISDN:</strong> Your phone number (e.g., 254700000000)</li>
+                            <li><strong>Extra Characters:</strong> 32 hex characters for protocol compatibility</li>
+                            <li><strong>Privacy:</strong> Only you know your public addresses</li>
+                            <li><strong>Multiple Addresses:</strong> Generate multiple addresses per phone number</li>
+                        </ul>
+                        <div class="example-box">
+                            <strong>Example:</strong><br>
+                            <code>afro:254700000000:a1b2c3d4e5f67890abcdef1234567890</code>
+                        </div>
+                    </div>
+
+                    <div class="feature-card">
+                        <h3>📱 SMS Validation</h3>
+                        <p>Each address generation includes SMS validation:</p>
+                        <ul>
+                            <li><strong>OTP Generation:</strong> 6-digit code from extra characters</li>
+                            <li><strong>SMS Delivery:</strong> Sent to your registered phone number</li>
+                            <li><strong>Validation Required:</strong> Confirm address ownership</li>
+                            <li><strong>Security:</strong> Prevents unauthorized address generation</li>
+                        </ul>
+                    </div>
+
+                    <div class="feature-card">
+                        <h3>🔐 Privacy Features</h3>
+                        <ul>
+                            <li><strong>Address Ownership:</strong> Only you know your addresses</li>
+                            <li><strong>Phone Linking:</strong> Addresses linked to your MSISDN</li>
+                            <li><strong>Multiple Generation:</strong> Create multiple addresses per phone</li>
+                            <li><strong>Validator Privacy:</strong> Validators only see generation requests</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="address-generation" class="generation-section">
+            <div class="container">
+                <h2>Address Generation System</h2>
+                <div class="generation-workflow">
+                    
+                    <div class="workflow-step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Request Generation</h3>
+                            <p>User requests new address generation with their MSISDN phone number</p>
+                            <code>Target: afro:[MSISDN]:[???]</code>
+                        </div>
+                    </div>
+
+                    <div class="workflow-step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Brute-Force Search</h3>
+                            <p>Validator performs computational search to find valid address:</p>
+                            <ul>
+                                <li>Generates random 32 hex characters</li>
+                                <li>Validates Ethereum address compatibility</li>
+                                <li>Ensures secp256k1 curve compliance</li>
+                                <li>Up to 1,000,000 attempts per generation</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="workflow-step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>SMS Validation</h3>
+                            <p>Once valid address found, SMS validation is triggered:</p>
+                            <ul>
+                                <li>Extract OTP from extra characters (SHA256 + 6 digits)</li>
+                                <li>Send SMS to user's phone number</li>
+                                <li>Include both OTP and extra characters</li>
+                                <li>User confirms ownership</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="workflow-step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Address Delivery</h3>
+                            <p>Validated address is delivered to user:</p>
+                            <ul>
+                                <li>Full address: <code>afro:[MSISDN]:[extra_chars]</code></li>
+                                <li>Protocol compatible: <code>0x[extra_chars]</code></li>
+                                <li>Ready for blockchain operations</li>
+                                <li>Private to user only</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="technical-specs">
+                    <h3>Technical Specifications</h3>
+                    <div class="specs-grid">
+                        <div class="spec-card">
+                            <h4>🔢 Algorithm</h4>
+                            <ul>
+                                <li><strong>Method:</strong> Brute-force search</li>
+                                <li><strong>Max Attempts:</strong> 1,000,000</li>
+                                <li><strong>Character Set:</strong> Hexadecimal (0-9, a-f)</li>
+                                <li><strong>Length:</strong> 32 characters (16 bytes)</li>
+                            </ul>
+                        </div>
+
+                        <div class="spec-card">
+                            <h4>📞 SMS Integration</h4>
+                            <ul>
+                                <li><strong>API Endpoint:</strong> http://localhost:3001/sms</li>
+                                <li><strong>Timeout:</strong> 30 seconds</li>
+                                <li><strong>OTP Length:</strong> 6 digits</li>
+                                <li><strong>Hash Function:</strong> SHA256</li>
+                            </ul>
+                        </div>
+
+                        <div class="spec-card">
+                            <h4>🌐 Validator Network</h4>
+                            <ul>
+                                <li><strong>Phone Registry:</strong> Peer-to-peer sharing</li>
+                                <li><strong>Validation:</strong> Cross-validator verification</li>
+                                <li><strong>Privacy:</strong> Phone numbers shared among validators</li>
+                                <li><strong>Redundancy:</strong> Multiple validator SMS capability</li>
+                            </ul>
+                        </div>
+
+                        <div class="spec-card">
+                            <h4>🔐 Security Features</h4>
+                            <ul>
+                                <li><strong>Curve Compatibility:</strong> secp256k1 validated</li>
+                                <li><strong>Address Privacy:</strong> User-only knowledge</li>
+                                <li><strong>SMS Verification:</strong> Phone ownership proof</li>
+                                <li><strong>Multiple Addresses:</strong> Enhanced privacy</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="implementation-details">
+                    <h3>Implementation Details</h3>
+                    <div class="code-examples">
+                        <div class="code-example">
+                            <h4>Address Generation Process</h4>
+                            <pre><code>#!/bin/bash
+# Generate address for MSISDN
+generate_afro_address() {
+    local msisdn=$1
+    local prefix="afro:${msisdn}:"
+    local max_attempts=1000000
+    
+    while [ $attempt -lt $max_attempts ]; do
+        extra_chars=$(openssl rand -hex 16)
+        candidate_address="${prefix}${extra_chars}"
+        eth_address="0x${extra_chars}"
+        
+        if geth account validate-address "$eth_address"; then
+            send_sms_validation "$msisdn" "$extra_chars"
+            echo "$candidate_address"
+            return 0
+        fi
+        
+        attempt=$((attempt + 1))
+    done
+}</code></pre>
+                        </div>
+
+                        <div class="code-example">
+                            <h4>SMS Validation Function</h4>
+                            <pre><code>#!/bin/bash
+send_sms_validation() {
+    local phone_number=$1
+    local validation_code=$2
+    local otp=$(echo -n "$validation_code" | sha256sum | cut -c1-6)
+    
+    curl -X POST "$AFRO_SMS_API_URL" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"to\": \"${phone_number}\",
+            \"message\": \"Your Afro address validation code: ${otp}\",
+            \"type\": \"address_validation\"
+        }"
+}</code></pre>
                         </div>
                     </div>
                 </div>
@@ -213,7 +410,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2024 Afro Network. Built with ❤️ for the decentralized future.</p>
+            <p>&copy; 2024 Afro Network. Built with ❤️ for mobile money integration and decentralized future.</p>
         </div>
     </footer>
 
