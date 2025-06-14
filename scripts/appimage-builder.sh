@@ -1,7 +1,7 @@
 
 #!/bin/bash
 
-# AppImage Builder for Afro Network
+# AppImage builder for Afro Network
 # This script handles the creation of the AppImage package
 
 set -e
@@ -15,13 +15,20 @@ install_dependencies() {
         exit 1
     fi
     
+    # Handle esbuild version conflicts by clearing cache if needed
+    if [ -d "node_modules" ] && [ -f "package-lock.json" ]; then
+        echo "🧹 Clearing existing node_modules and package-lock.json to resolve version conflicts..."
+        rm -rf node_modules
+        rm -f package-lock.json
+    fi
+    
     # Install dependencies using available package manager
     if command -v bun &> /dev/null; then
         echo "🔨 Installing dependencies with bun..."
         bun install
     elif command -v npm &> /dev/null; then
         echo "🔨 Installing dependencies with npm..."
-        npm install
+        npm install --no-package-lock
     elif command -v yarn &> /dev/null; then
         echo "🔨 Installing dependencies with yarn..."
         yarn install
