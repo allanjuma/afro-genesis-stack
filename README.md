@@ -1,3 +1,4 @@
+
 # Afro Network - Complete Blockchain Stack
 
 A complete, production-ready Docker stack for the Afro blockchain network featuring:
@@ -6,6 +7,7 @@ A complete, production-ready Docker stack for the Afro blockchain network featur
 - **Block Explorer**: Blockscout-based explorer with custom Afro branding
 - **Landing Page**: Static website with documentation and MetaMask integration
 - **Unique Address Format**: Frontend-level `afro:` address formatting
+- **AppImage Distribution**: Portable Linux application package
 
 ## 🚀 Quick Start
 
@@ -30,6 +32,59 @@ docker-compose up -d
 
 # Check status
 docker-compose ps
+```
+
+## 📦 AppImage Build
+
+### Prerequisites for AppImage
+- Linux system (Ubuntu/Debian/Fedora/Arch/openSUSE)
+- Node.js v18+ (automatically installed via nvm if needed)
+- FUSE library (automatically installed if missing)
+- Build essentials and dependencies
+
+### Building AppImage
+```bash
+# Build AppImage only (skips Docker setup)
+./setup.sh --appimage-only
+
+# Or build as part of full setup
+./setup.sh
+```
+
+### Using the AppImage
+```bash
+# Make executable
+chmod +x AfroNetwork.AppImage
+
+# Run the application
+./AfroNetwork.AppImage
+
+# Access dashboard at http://localhost:8080
+```
+
+### AppImage Features
+- **Portable**: Runs on any Linux distribution
+- **Self-contained**: No installation required
+- **Cross-architecture**: Automatically detects system architecture
+- **Integrated dashboard**: Complete Afro Network interface
+- **No dependencies**: All required components bundled
+
+### AppImage Troubleshooting
+```bash
+# Check FUSE installation
+ldconfig -p | grep libfuse
+
+# Manual FUSE installation
+sudo apt-get install fuse libfuse2  # Ubuntu/Debian
+sudo dnf install fuse fuse-libs     # Fedora
+sudo pacman -S fuse2               # Arch
+
+# Check Node.js version
+node --version  # Should be v18+
+
+# Clean build (if needed)
+rm -rf node_modules dist AfroNetwork.AppImage
+./setup.sh --appimage-only
 ```
 
 ## 🌐 Service URLs
@@ -71,6 +126,11 @@ afro-chain/
 │   ├── Dockerfile
 │   ├── nginx.conf     # NGINX configuration
 │   └── site/          # Static HTML/CSS/JS files
+├── scripts/           # Build and deployment scripts
+│   ├── appimage-builder.sh    # AppImage build script
+│   ├── env-generator.sh       # Environment configuration
+│   ├── docker-manager.sh      # Docker operations
+│   └── health-checker.sh      # Service monitoring
 ├── docker-compose.yml # Main orchestration file
 ├── setup.sh          # Automated setup script
 └── README.md         # This file

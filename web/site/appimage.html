@@ -1,0 +1,368 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AppImage Build Guide - Afro Network</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" href="images/afro-logo.png">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <img src="images/afro-logo.png" alt="Afro Network" class="logo">
+                <h1>Afro Network AppImage</h1>
+                <p>Portable Linux Application Distribution</p>
+            </div>
+        </header>
+
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="docs.html">API Docs</a>
+            <a href="ecosystem.html">Ecosystem</a>
+            <a href="faucet.html">Faucet</a>
+            <a href="appimage.html" class="active">AppImage</a>
+        </nav>
+
+        <main>
+            <section class="hero">
+                <h2>📦 Build Portable Linux Applications</h2>
+                <p>Create self-contained AppImage packages that run on any Linux distribution without installation.</p>
+            </section>
+
+            <section class="card">
+                <h3>🚀 Quick Build</h3>
+                <div class="code-block">
+                    <code>
+# Build AppImage only<br>
+./setup.sh --appimage-only<br><br>
+# Make executable and run<br>
+chmod +x AfroNetwork.AppImage<br>
+./AfroNetwork.AppImage
+                    </code>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>📋 Prerequisites</h3>
+                <ul>
+                    <li><strong>Linux System:</strong> Ubuntu, Debian, Fedora, Arch, openSUSE</li>
+                    <li><strong>Node.js v18+:</strong> Automatically installed via nvm if needed</li>
+                    <li><strong>FUSE Library:</strong> Automatically installed if missing</li>
+                    <li><strong>Build Tools:</strong> gcc, make, git (usually pre-installed)</li>
+                </ul>
+            </section>
+
+            <section class="card">
+                <h3>🔧 Build Process</h3>
+                <div class="process-steps">
+                    <div class="step">
+                        <h4>1. Environment Setup</h4>
+                        <p>The build script automatically:</p>
+                        <ul>
+                            <li>Installs FUSE if missing</li>
+                            <li>Ensures Node.js v18+ is available</li>
+                            <li>Installs project dependencies</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <h4>2. React App Build</h4>
+                        <p>Compiles the dashboard using:</p>
+                        <ul>
+                            <li>Vite build system</li>
+                            <li>Node.js polyfills for crypto compatibility</li>
+                            <li>Production optimizations</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="step">
+                        <h4>3. AppImage Creation</h4>
+                        <p>Packages everything into:</p>
+                        <ul>
+                            <li>Self-contained executable</li>
+                            <li>Desktop integration files</li>
+                            <li>Architecture-specific build</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>🖥️ System Requirements</h3>
+                <div class="requirements-grid">
+                    <div class="req-item">
+                        <h4>Architecture</h4>
+                        <ul>
+                            <li>x86_64 (Intel/AMD 64-bit)</li>
+                            <li>aarch64 (ARM 64-bit)</li>
+                            <li>armhf (ARM 32-bit)</li>
+                            <li>i686 (Intel 32-bit)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="req-item">
+                        <h4>Linux Distributions</h4>
+                        <ul>
+                            <li>Ubuntu 18.04+</li>
+                            <li>Debian 10+</li>
+                            <li>Fedora 30+</li>
+                            <li>Arch Linux</li>
+                            <li>openSUSE Leap 15+</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>🔍 Troubleshooting</h3>
+                <div class="troubleshoot-item">
+                    <h4>FUSE Installation Issues</h4>
+                    <div class="code-block">
+                        <code>
+# Check FUSE installation<br>
+ldconfig -p | grep libfuse<br><br>
+# Manual installation<br>
+sudo apt-get install fuse libfuse2    # Ubuntu/Debian<br>
+sudo dnf install fuse fuse-libs       # Fedora<br>
+sudo pacman -S fuse2                  # Arch<br>
+sudo zypper install fuse libfuse2     # openSUSE
+                        </code>
+                    </div>
+                </div>
+
+                <div class="troubleshoot-item">
+                    <h4>Node.js Version Issues</h4>
+                    <div class="code-block">
+                        <code>
+# Check Node.js version<br>
+node --version<br><br>
+# Install Node.js v18 via nvm<br>
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash<br>
+source ~/.bashrc<br>
+nvm install 18<br>
+nvm use 18
+                        </code>
+                    </div>
+                </div>
+
+                <div class="troubleshoot-item">
+                    <h4>Build Failures</h4>
+                    <div class="code-block">
+                        <code>
+# Clean build<br>
+rm -rf node_modules dist AfroNetwork.AppImage<br>
+./setup.sh --appimage-only<br><br>
+# Check build logs<br>
+npm run build  # Manual build for debugging
+                        </code>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>🎯 AppImage Features</h3>
+                <div class="features-grid">
+                    <div class="feature">
+                        <h4>🚀 Portable</h4>
+                        <p>Runs on any Linux distribution without installation</p>
+                    </div>
+                    
+                    <div class="feature">
+                        <h4>🔒 Self-contained</h4>
+                        <p>All dependencies bundled, no system modifications</p>
+                    </div>
+                    
+                    <div class="feature">
+                        <h4>🎮 Double-click Launch</h4>
+                        <p>Desktop integration for easy execution</p>
+                    </div>
+                    
+                    <div class="feature">
+                        <h4>🌐 Web Dashboard</h4>
+                        <p>Complete Afro Network interface at localhost:8080</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>📱 Usage Instructions</h3>
+                <div class="usage-steps">
+                    <div class="usage-step">
+                        <strong>1. Download/Build</strong>
+                        <p>Run <code>./setup.sh --appimage-only</code> to create AfroNetwork.AppImage</p>
+                    </div>
+                    
+                    <div class="usage-step">
+                        <strong>2. Make Executable</strong>
+                        <p>Run <code>chmod +x AfroNetwork.AppImage</code> to enable execution</p>
+                    </div>
+                    
+                    <div class="usage-step">
+                        <strong>3. Launch</strong>
+                        <p>Double-click the file or run <code>./AfroNetwork.AppImage</code> from terminal</p>
+                    </div>
+                    
+                    <div class="usage-step">
+                        <strong>4. Access Dashboard</strong>
+                        <p>Open your browser to <a href="http://localhost:8080" target="_blank">http://localhost:8080</a></p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>🔧 Advanced Configuration</h3>
+                <div class="config-section">
+                    <h4>Custom Port</h4>
+                    <p>Modify the launcher script to use a different port:</p>
+                    <div class="code-block">
+                        <code>
+# Extract AppImage<br>
+./AfroNetwork.AppImage --appimage-extract<br><br>
+# Edit usr/bin/afro-network<br>
+# Change: python3 -m http.server 8080<br>
+# To: python3 -m http.server 3000<br><br>
+# Repackage<br>
+appimagetool squashfs-root AfroNetwork-Custom.AppImage
+                        </code>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h4>Desktop Integration</h4>
+                    <p>The AppImage includes desktop files for system menu integration:</p>
+                    <ul>
+                        <li>Application name: Afro Network</li>
+                        <li>Category: Development</li>
+                        <li>Icon: afro-logo.png</li>
+                        <li>Executable: afro-network</li>
+                    </ul>
+                </div>
+            </section>
+
+            <div class="cta-section">
+                <h3>Ready to Build?</h3>
+                <div class="code-block">
+                    <code>
+git clone &lt;repository-url&gt;<br>
+cd afro-chain<br>
+./setup.sh --appimage-only
+                    </code>
+                </div>
+                <p>Your portable Afro Network application will be ready in minutes!</p>
+            </div>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 Afro Network. Built with ❤️ for the decentralized future.</p>
+        </footer>
+    </div>
+
+    <style>
+        .process-steps {
+            display: grid;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .step {
+            padding: 1.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .step h4 {
+            color: #2c5aa0;
+            margin-bottom: 1rem;
+        }
+        
+        .requirements-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .req-item {
+            padding: 1rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+        
+        .troubleshoot-item {
+            margin-bottom: 2rem;
+        }
+        
+        .troubleshoot-item h4 {
+            color: #d32f2f;
+            margin-bottom: 1rem;
+        }
+        
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        
+        .feature {
+            text-align: center;
+            padding: 1.5rem;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+        
+        .feature h4 {
+            color: #2c5aa0;
+            margin-bottom: 1rem;
+        }
+        
+        .usage-steps {
+            display: grid;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .usage-step {
+            padding: 1rem;
+            border-left: 4px solid #2c5aa0;
+            background: #f8f9fa;
+        }
+        
+        .config-section {
+            margin-bottom: 2rem;
+        }
+        
+        .config-section h4 {
+            color: #2c5aa0;
+            margin-bottom: 1rem;
+        }
+        
+        .cta-section {
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, #2c5aa0, #1976d2);
+            color: white;
+            border-radius: 12px;
+            margin: 2rem 0;
+        }
+        
+        .cta-section h3 {
+            margin-bottom: 1rem;
+        }
+        
+        .cta-section .code-block {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .cta-section .code-block code {
+            color: #ffffff;
+        }
+    </style>
+</body>
+</html>
