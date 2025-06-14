@@ -1,4 +1,3 @@
-
 # Afro Network - Complete Blockchain Stack
 
 A complete, production-ready Docker stack for the Afro blockchain network featuring:
@@ -240,3 +239,15 @@ This project is open source. Individual components may have their own licenses:
 ---
 
 **Built with ❤️ for the decentralized future**
+
+## 📑 Validator Node Backend Documentation
+
+The validator node exposes its backend functionality through Bash scripts using `geth attach` for all blockchain interactions. For a complete, interactive guide to these backend scripts (address generation, rewards distribution, SMS, etc.), visit:
+
+- **Live interactive docs:**  
+  [`/docs`](http://localhost/docs) (served from the web container as `web/site/docs.html`)
+
+This page provides interactive documentation of all available Bash scripts for the validator backend and how they directly utilize `geth attach` for full on-chain operations.
+
+**Want Markdown/extended docs for GitHub use?**  
+See the [Validator Node Backend Scripts](../../wiki/Validator-Node-Backend-Scripts) page in your project's GitHub Wiki for an up-to-date, copy-pasteable API and Bash documentation.
