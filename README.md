@@ -1,4 +1,3 @@
-
 # Afro Network - Complete Blockchain Stack
 
 A complete, production-ready Docker stack for the Afro blockchain network featuring:
@@ -97,6 +96,9 @@ docker build --no-cache -t afro-appimage-builder -f appimage/Dockerfile .
 
 # Check build logs
 docker run --rm afro-appimage-builder
+
+# Native build fallback
+./setup.sh --appimage-only  # Will use native build if Docker fails
 ```
 
 ## 🌐 Service URLs
