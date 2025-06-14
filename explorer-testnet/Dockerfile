@@ -1,5 +1,5 @@
 
-FROM elixir:1.15
+FROM elixir:1.17
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
