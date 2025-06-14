@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # AppImage builder for Afro Network
@@ -14,10 +15,6 @@ build_appimage_docker() {
         build_appimage_native
         return $?
     fi
-    
-    # Build the React app first
-    echo "🔨 Building React app before Docker build..."
-    build_react_app
     
     # Build the Docker image
     echo "🔨 Building AppImage builder Docker image..."
@@ -361,78 +358,8 @@ install_dependencies() {
 ensure_node_v18() {
     echo "🔍 Checking Node.js version..."
     
-    # Get current Node.js version
-    if command -v node &> /dev/null; then
-        current_version=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-        echo "Current Node.js version: v$(node -v | cut -d'v' -f2)"
-        
-        if [ "$current_version" -lt 18 ]; then
-            echo "⚠️  Node.js v18+ required for crypto compatibility"
-            
-            # Check if nvm is available
-            if ! command -v nvm &> /dev/null; then
-                echo "📦 nvm not found, installing nvm..."
-                
-                # Download and install nvm
-                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-                
-                # Source nvm to make it available in current session
-                export NVM_DIR="$HOME/.nvm"
-                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-                
-                # Verify nvm installation
-                if ! command -v nvm &> /dev/null; then
-                    echo "❌ Failed to install nvm. Trying alternative installation method..."
-                    
-                    # Alternative: try wget if curl failed
-                    if command -v wget &> /dev/null; then
-                        wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-                        
-                        # Source nvm again
-                        export NVM_DIR="$HOME/.nvm"
-                        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-                    fi
-                    
-                    # Final check
-                    if ! command -v nvm &> /dev/null; then
-                        echo "❌ Failed to install nvm. Please install it manually and rerun the script."
-                        echo "💡 Visit: https://github.com/nvm-sh/nvm#installing-and-updating"
-                        exit 1
-                    fi
-                fi
-                
-                echo "✅ nvm installed successfully"
-            else
-                # Source nvm if it exists but isn't loaded
-                export NVM_DIR="$HOME/.nvm"
-                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-                [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
-            fi
-            
-            # Install and use Node.js v18
-            echo "📦 Installing and using Node.js v18 via nvm..."
-            nvm install 18
-            nvm use 18
-            
-            # Verify the switch was successful
-            if command -v node &> /dev/null; then
-                new_version=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-                if [ "$new_version" -ge 18 ]; then
-                    echo "✅ Successfully switched to Node.js v$(node -v | cut -d'v' -f2)"
-                else
-                    echo "❌ Failed to switch to Node.js v18. Current version: v$(node -v | cut -d'v' -f2)"
-                    exit 1
-                fi
-            else
-                echo "❌ Node.js not available after nvm installation"
-                exit 1
-            fi
-        else
-            echo "✅ Node.js v18+ detected"
-        fi
-    else
+    # Check if Node.js is available
+    if ! command -v node &> /dev/null; then
         echo "❌ Node.js not found. Installing via nvm..."
         
         # Install nvm if not present
@@ -464,6 +391,78 @@ ensure_node_v18() {
             echo "❌ Failed to install Node.js"
             exit 1
         fi
+        return 0
+    fi
+    
+    # Get current Node.js version
+    current_version=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+    echo "Current Node.js version: v$(node -v | cut -d'v' -f2)"
+    
+    if [ "$current_version" -lt 18 ]; then
+        echo "⚠️  Node.js v18+ required for crypto compatibility"
+        
+        # Check if nvm is available
+        if ! command -v nvm &> /dev/null; then
+            echo "📦 nvm not found, installing nvm..."
+            
+            # Download and install nvm
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            
+            # Source nvm to make it available in current session
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+            
+            # Verify nvm installation
+            if ! command -v nvm &> /dev/null; then
+                echo "❌ Failed to install nvm. Trying alternative installation method..."
+                
+                # Alternative: try wget if curl failed
+                if command -v wget &> /dev/null; then
+                    wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+                    
+                    # Source nvm again
+                    export NVM_DIR="$HOME/.nvm"
+                    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+                fi
+                
+                # Final check
+                if ! command -v nvm &> /dev/null; then
+                    echo "❌ Failed to install nvm. Please install it manually and rerun the script."
+                    echo "💡 Visit: https://github.com/nvm-sh/nvm#installing-and-updating"
+                    exit 1
+                fi
+            fi
+            
+            echo "✅ nvm installed successfully"
+        else
+            # Source nvm if it exists but isn't loaded
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+        fi
+        
+        # Install and use Node.js v18
+        echo "📦 Installing and using Node.js v18 via nvm..."
+        nvm install 18
+        nvm use 18
+        
+        # Verify the switch was successful
+        if command -v node &> /dev/null; then
+            new_version=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+            if [ "$new_version" -ge 18 ]; then
+                echo "✅ Successfully switched to Node.js v$(node -v | cut -d'v' -f2)"
+            else
+                echo "❌ Failed to switch to Node.js v18. Current version: v$(node -v | cut -d'v' -f2)"
+                exit 1
+            fi
+        else
+            echo "❌ Node.js not available after nvm installation"
+            exit 1
+        fi
+    else
+        echo "✅ Node.js v18+ detected"
     fi
 }
 
