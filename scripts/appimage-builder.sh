@@ -239,6 +239,30 @@ build_appimage() {
         echo "✅ AppImageTool installed successfully"
     fi
     
+    # Detect system architecture
+    SYSTEM_ARCH=$(uname -m)
+    case "$SYSTEM_ARCH" in
+        x86_64)
+            ARCH="x86_64"
+            ;;
+        aarch64|arm64)
+            ARCH="aarch64"
+            ;;
+        armv7l)
+            ARCH="armhf"
+            ;;
+        i686|i386)
+            ARCH="i686"
+            ;;
+        *)
+            echo "⚠️  Unknown architecture: $SYSTEM_ARCH, defaulting to x86_64"
+            ARCH="x86_64"
+            ;;
+    esac
+    
+    echo "🏗️  Detected architecture: $ARCH"
+    export ARCH
+    
     # Create AppImage directory structure
     echo "📁 Creating AppImage directory structure..."
     mkdir -p AppDir/usr/bin
@@ -283,7 +307,7 @@ fi
 EOF
     chmod +x AppDir/usr/bin/afro-network
     
-    # Create desktop file
+    # Create desktop file with single main category
     cat > AppDir/usr/share/applications/afro-network.desktop << 'EOF'
 [Desktop Entry]
 Type=Application
@@ -291,7 +315,7 @@ Name=Afro Network
 Comment=Afro Network Validator Dashboard
 Exec=afro-network
 Icon=afro-network
-Categories=Development;Network;
+Categories=Development;
 StartupNotify=true
 EOF
     
@@ -402,9 +426,9 @@ VITE_EOF
     # Copy built React app
     cp -r dist/* AppDir/
     
-    # Build AppImage
-    echo "🔨 Building AppImage..."
-    appimagetool AppDir AfroNetwork.AppImage
+    # Build AppImage with proper architecture
+    echo "🔨 Building AppImage for architecture: $ARCH..."
+    ARCH=$ARCH appimagetool AppDir AfroNetwork.AppImage
     
     if [ -f "AfroNetwork.AppImage" ]; then
         echo "✅ AppImage built successfully: AfroNetwork.AppImage"
@@ -416,6 +440,7 @@ VITE_EOF
         echo "   • No installation required"
         echo "   • Double-click to launch or run from terminal"
         echo "   • Built with Node.js v$(node -v | cut -d'v' -f2)"
+        echo "   • Architecture: $ARCH"
         echo ""
         echo "🚀 To use the AppImage:"
         echo "   1. Make it executable: chmod +x AfroNetwork.AppImage"
