@@ -518,25 +518,51 @@ app.post('/api/ceo/docker-execute', async (req, res) => {
     });
   }
 
+  // Validate command for security
+  const allowedCommands = [
+    'docker ps',
+    'docker-compose up',
+    'docker-compose down',
+    'docker-compose stop',
+    'docker-compose restart',
+    'docker-compose build',
+    'git pull'
+  ];
+
+  const isValidCommand = allowedCommands.some(allowed => command.trim().startsWith(allowed));
+  if (!isValidCommand) {
+    return res.status(403).json({
+      success: false,
+      message: 'Command not allowed for security reasons',
+      error: 'Unauthorized command'
+    });
+  }
+
   try {
     console.log(`Executing Docker command: ${command}`);
     
-    const result = await new Promise((resolve, reject) => {
-      exec(command, { cwd: '/usr/src/app' }, (error, stdout, stderr) => {
+    const result = await new Promise((resolve) => {
+      const { exec } = require('child_process');
+      
+      exec(command, { 
+        cwd: process.env.DOCKER_COMPOSE_DIR || '/usr/src/app',
+        timeout: 30000, // 30 second timeout
+        maxBuffer: 1024 * 1024 // 1MB buffer
+      }, (error, stdout, stderr) => {
         if (error) {
           console.error(`Command failed: ${error.message}`);
           resolve({
             success: false,
             message: error.message,
-            output: stderr || stdout,
-            exitCode: error.code
+            output: stderr || stdout || '',
+            exitCode: error.code || 1
           });
         } else {
           console.log(`Command succeeded: ${stdout}`);
           resolve({
             success: true,
             message: 'Command executed successfully',
-            output: stdout,
+            output: stdout || '',
             exitCode: 0
           });
         }
@@ -552,6 +578,35 @@ app.post('/api/ceo/docker-execute', async (req, res) => {
       error: error.message
     });
   }
+});
+
+// Enhanced stack status endpoint
+app.get('/api/ceo/stack-status', async (req, res) => {
+  try {
+    const status = await getStackStatus();
+    res.json(status);
+  } catch (error) {
+    console.error('Stack status error:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to get stack status',
+      message: error.message 
+    });
+  }
+});
+
+// Enhanced health check endpoint
+app.get('/api/ceo/health', (req, res) => {
+  res.json({ 
+    success: true, 
+    message: 'CEO API is running and ready',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0',
+    services: {
+      docker: true,
+      git: true,
+      filesystem: true
+    }
+  });
 });
 
 // Error handling

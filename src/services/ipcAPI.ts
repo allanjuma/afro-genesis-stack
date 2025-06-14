@@ -19,28 +19,41 @@ export interface StackStatus {
 
 class IPCAPIService {
   private isConnected = false;
-  private baseUrl = '';
+  private connectionRetries = 0;
+  private maxRetries = 3;
+  private retryDelay = 2000;
 
   async checkConnection(): Promise<boolean> {
     try {
       console.log('Checking IPC connection...');
       
-      // Try to reach the CEO API service which should be available
       const response = await fetch('/api/ceo/health', {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(5000) // 5 second timeout
       });
       
       if (response.ok) {
+        const data = await response.json();
         this.isConnected = true;
-        console.log('IPC connection established via CEO API');
+        this.connectionRetries = 0;
+        console.log('IPC connection established:', data);
         return true;
       }
       
-      throw new Error(`Health check failed: ${response.status}`);
+      throw new Error(`Health check failed: ${response.status} ${response.statusText}`);
     } catch (error) {
       console.log('IPC connection check failed:', error);
       this.isConnected = false;
+      
+      // Retry logic
+      if (this.connectionRetries < this.maxRetries) {
+        this.connectionRetries++;
+        console.log(`Retrying connection (${this.connectionRetries}/${this.maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, this.retryDelay));
+        return this.checkConnection();
+      }
+      
       return false;
     }
   }
@@ -50,17 +63,17 @@ class IPCAPIService {
       console.log(`Executing Docker command via IPC: ${command}`);
       
       if (!this.isConnected) {
-        await this.checkConnection();
-      }
-
-      if (!this.isConnected) {
-        throw new Error('IPC connection not available');
+        const connected = await this.checkConnection();
+        if (!connected) {
+          throw new Error('IPC connection not available');
+        }
       }
 
       const response = await fetch('/api/ceo/docker-execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command })
+        body: JSON.stringify({ command }),
+        signal: AbortSignal.timeout(30000) // 30 second timeout for docker commands
       });
 
       if (!response.ok) {
@@ -77,6 +90,12 @@ class IPCAPIService {
       };
     } catch (error) {
       console.error('Docker command execution failed:', error);
+      
+      // Reset connection status on failure
+      if (error instanceof Error && error.message.includes('fetch')) {
+        this.isConnected = false;
+      }
+      
       return {
         success: false,
         message: error instanceof Error ? error.message : 'Command execution failed',
@@ -89,29 +108,35 @@ class IPCAPIService {
     try {
       console.log('Getting stack status via IPC...');
       
+      // First check if we can reach the CEO backend
+      if (!this.isConnected) {
+        const connected = await this.checkConnection();
+        if (!connected) {
+          return this.getDefaultStackStatus();
+        }
+      }
+
+      // Try to get status from CEO backend first
+      const response = await fetch('/api/ceo/stack-status', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000)
+      });
+
+      if (response.ok) {
+        const status = await response.json();
+        return {
+          ...status,
+          connected: true
+        };
+      }
+
+      // Fallback to docker ps command
       const result = await this.executeDockerCommand('docker ps --format "{{.Names}}\t{{.Status}}" --filter "name=afro"');
       
       if (!result.success) {
         console.log('Docker ps command failed, checking individual containers...');
-        
-        // Fallback: try to check individual containers
-        const containers = ['afro-validator', 'afro-testnet-validator', 'afro-explorer', 'afro-testnet-explorer', 'afro-web', 'afro-ceo'];
-        const statuses = await Promise.all(
-          containers.map(async (container) => {
-            const cmd = `docker ps --format "{{.Names}}\t{{.Status}}" --filter "name=${container}"`;
-            const res = await this.executeDockerCommand(cmd);
-            return { container, running: res.success && res.data && res.data.includes('Up') };
-          })
-        );
-        
-        return {
-          mainnet: statuses.find(s => s.container === 'afro-validator')?.running || false,
-          testnet: statuses.find(s => s.container === 'afro-testnet-validator')?.running || false,
-          explorer: statuses.some(s => (s.container.includes('explorer')) && s.running),
-          website: statuses.find(s => s.container === 'afro-web')?.running || false,
-          ceo: statuses.find(s => s.container === 'afro-ceo')?.running || false,
-          connected: this.isConnected
-        };
+        return await this.checkIndividualContainers();
       }
 
       const output = result.data || '';
@@ -127,18 +152,55 @@ class IPCAPIService {
       };
     } catch (error) {
       console.error('Failed to get stack status:', error);
-      return {
-        mainnet: false,
-        testnet: false,
-        explorer: false,
-        website: false,
-        ceo: false,
-        connected: false
-      };
+      this.isConnected = false;
+      return this.getDefaultStackStatus();
     }
   }
 
+  private async checkIndividualContainers(): Promise<StackStatus> {
+    const containers = ['afro-validator', 'afro-testnet-validator', 'afro-explorer', 'afro-testnet-explorer', 'afro-web', 'afro-ceo'];
+    const statuses = await Promise.all(
+      containers.map(async (container) => {
+        try {
+          const cmd = `docker ps --format "{{.Names}}\t{{.Status}}" --filter "name=${container}"`;
+          const res = await this.executeDockerCommand(cmd);
+          return { container, running: res.success && res.data && res.data.includes('Up') };
+        } catch {
+          return { container, running: false };
+        }
+      })
+    );
+    
+    return {
+      mainnet: statuses.find(s => s.container === 'afro-validator')?.running || false,
+      testnet: statuses.find(s => s.container === 'afro-testnet-validator')?.running || false,
+      explorer: statuses.some(s => (s.container.includes('explorer')) && s.running),
+      website: statuses.find(s => s.container === 'afro-web')?.running || false,
+      ceo: statuses.find(s => s.container === 'afro-ceo')?.running || false,
+      connected: this.isConnected
+    };
+  }
+
+  private getDefaultStackStatus(): StackStatus {
+    return {
+      mainnet: false,
+      testnet: false,
+      explorer: false,
+      website: false,
+      ceo: false,
+      connected: false
+    };
+  }
+
   async startStack(services?: string[]): Promise<IPCResponse> {
+    if (!this.isConnected) {
+      const connected = await this.checkConnection();
+      if (!connected) {
+        toast.error('IPC connection not available');
+        return { success: false, message: 'IPC connection not available' };
+      }
+    }
+
     const serviceList = services && services.length > 0 ? services.join(' ') : '';
     const command = `docker-compose up -d ${serviceList}`.trim();
     
@@ -154,6 +216,14 @@ class IPCAPIService {
   }
 
   async stopStack(services?: string[]): Promise<IPCResponse> {
+    if (!this.isConnected) {
+      const connected = await this.checkConnection();
+      if (!connected) {
+        toast.error('IPC connection not available');
+        return { success: false, message: 'IPC connection not available' };
+      }
+    }
+
     const command = services && services.length > 0 
       ? `docker-compose stop ${services.join(' ')}`
       : 'docker-compose down';
@@ -170,6 +240,14 @@ class IPCAPIService {
   }
 
   async restartStack(services?: string[]): Promise<IPCResponse> {
+    if (!this.isConnected) {
+      const connected = await this.checkConnection();
+      if (!connected) {
+        toast.error('IPC connection not available');
+        return { success: false, message: 'IPC connection not available' };
+      }
+    }
+
     const serviceList = services && services.length > 0 ? services.join(' ') : '';
     const command = `docker-compose restart ${serviceList}`.trim();
     
@@ -185,6 +263,14 @@ class IPCAPIService {
   }
 
   async pullUpdates(): Promise<IPCResponse> {
+    if (!this.isConnected) {
+      const connected = await this.checkConnection();
+      if (!connected) {
+        toast.error('IPC connection not available');
+        return { success: false, message: 'IPC connection not available' };
+      }
+    }
+
     const result = await this.executeDockerCommand('git pull origin main');
     
     if (result.success) {
@@ -197,6 +283,14 @@ class IPCAPIService {
   }
 
   async buildContainers(): Promise<IPCResponse> {
+    if (!this.isConnected) {
+      const connected = await this.checkConnection();
+      if (!connected) {
+        toast.error('IPC connection not available');
+        return { success: false, message: 'IPC connection not available' };
+      }
+    }
+
     const result = await this.executeDockerCommand('docker-compose build --no-cache');
     
     if (result.success) {
@@ -210,6 +304,12 @@ class IPCAPIService {
 
   getConnectionStatus(): boolean {
     return this.isConnected;
+  }
+
+  // Add method to manually reset connection
+  resetConnection(): void {
+    this.isConnected = false;
+    this.connectionRetries = 0;
   }
 }
 
