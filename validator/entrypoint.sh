@@ -276,11 +276,6 @@ done
 echo "Geth IPC file found. Geth is likely running."
 sleep 5 # Extra grace period for RPC to be fully ready
 
-# Get enode URL and write to file for dashboard display
-ENODE_URL=$(geth attach "$IPC_PATH" --exec "admin.nodeInfo.enode" 2>/dev/null | tr -d '"')
-echo "$ENODE_URL" > /root/.ethereum/enode_url.txt
-echo "Enode URL for sharing: $ENODE_URL"
-
 # Main loop to process new blocks
 LATEST_PROCESSED_BLOCK=$(g_exec "eth.blockNumber" || echo 0)
 echo "Starting block processing from block: $LATEST_PROCESSED_BLOCK"
