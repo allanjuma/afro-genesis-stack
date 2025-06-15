@@ -28,7 +28,6 @@ interface AddressGenerationStatsData {
 
 const AddressGenerationStats = () => {
   const queryClient = useQueryClient();
-
   const [customMsisdn, setCustomMsisdn] = useState("254000000000");
   const [testGenerations, setTestGenerations] = useState<AddressGeneration[]>([]);
 
@@ -37,70 +36,49 @@ const AddressGenerationStats = () => {
     queryFn: async (): Promise<AddressGenerationStatsData> => {
       console.log('🔍 Fetching address generation stats from validator...');
       
-      try {
-        // Call actual validator API through nginx proxy
-        const response = await fetch('/rpc', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            jsonrpc: '2.0',
-            method: 'afro_getAddressStats',
-            params: [],
-            id: 1
-          })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          console.log('📊 Received stats from validator:', data);
-          
-          if (data.result) {
-            // Convert timestamp strings back to Date objects
-            data.result.recentGenerations = data.result.recentGenerations.map((gen: any) => ({
-              ...gen,
-              timestamp: new Date(gen.timestamp)
-            }));
-            return data.result;
-          }
-        }
-        
-        // If validator is not available (404), return fallback data
-        if (response.status === 404) {
-          console.log('⚠️ Validator not available, using fallback data');
-          return {
-            totalGenerated: 0,
-            pendingGenerations: 0,
-            avgAttempts: 0,
-            recentGenerations: []
-          };
-        }
-        
+      const response = await fetch('/rpc', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'afro_getAddressStats',
+          params: [],
+          id: 1
+        })
+      });
+      
+      if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      } catch (error) {
-        console.error('❌ Failed to fetch from validator:', error);
-        // Return fallback data instead of throwing
-        console.log('📦 Using fallback data due to validator unavailability');
-        return {
-          totalGenerated: 0,
-          pendingGenerations: 0,
-          avgAttempts: 0,
-          recentGenerations: []
-        };
       }
+      
+      const data = await response.json();
+      console.log('📊 Received stats from validator:', data);
+      
+      if (data.error) {
+        throw new Error(data.error.message || 'RPC error');
+      }
+      
+      // Convert timestamp strings back to Date objects
+      if (data.result && data.result.recentGenerations) {
+        data.result.recentGenerations = data.result.recentGenerations.map((gen: any) => ({
+          ...gen,
+          timestamp: new Date(gen.timestamp)
+        }));
+      }
+      
+      return data.result;
     },
     refetchInterval: (query) => {
       return query.state.data && query.state.data.totalGenerated > 0 ? 3000 : false;
     },
-    retry: 1,
-    retryDelay: 5000,
+    retry: false,
   });
 
   const generateAddressMutation = useMutation({
     mutationFn: async ({ msisdn, test }: { msisdn: string; test: boolean }) => {
       if (test) {
-        // Fake test generation without blockchain inclusion:
         return {
           id: "test-" + Date.now(),
           msisdn,
@@ -111,6 +89,7 @@ const AddressGenerationStats = () => {
           test: true,
         };
       }
+      
       const response = await fetch('/rpc', {
         method: 'POST',
         headers: {
@@ -125,9 +104,6 @@ const AddressGenerationStats = () => {
       });
 
       if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Validator service is not available');
-        }
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
@@ -177,15 +153,7 @@ const AddressGenerationStats = () => {
     return <div className="animate-pulse">Loading address stats...</div>;
   }
 
-  if (error) {
-    return <div className="text-red-500">Error loading generation stats.</div>;
-  }
-
-  // FIX: Always use 'data' from the query!
-  const totalGenerated = data?.totalGenerated ?? 0;
-  const pendingGenerations = data?.pendingGenerations ?? 0;
-  const avgAttempts = data?.avgAttempts ?? 0;
-  const recentGenerations = data?.recentGenerations ?? [];
+  const isValidatorUnavailable = !!error;
 
   const getStatusBadge = (status: string, test?: boolean) => {
     if (test) {
@@ -208,16 +176,16 @@ const AddressGenerationStats = () => {
     return date.toLocaleTimeString();
   };
 
-  const isValidatorUnavailable =
-    !data ||
-    (data.totalGenerated === 0 &&
-      data.pendingGenerations === 0 &&
-      data.recentGenerations.length === 0);
+  // Show actual data or empty values when validator is unavailable
+  const totalGenerated = data?.totalGenerated || 0;
+  const pendingGenerations = data?.pendingGenerations || 0;
+  const avgAttempts = data?.avgAttempts || 0;
+  const recentGenerations = data?.recentGenerations || [];
 
   // Merge test addresses (top) with real recentGenerations for display
   const displayedGenerations = [
     ...(testGenerations || []),
-    ...(data?.recentGenerations || [])
+    ...recentGenerations
   ];
 
   return (
@@ -276,7 +244,7 @@ const AddressGenerationStats = () => {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-yellow-700">
-              The validator service is not running or accessible. Address generation functionality is disabled.
+              The validator service is not running or accessible: {error?.message}
             </p>
           </CardContent>
         </Card>

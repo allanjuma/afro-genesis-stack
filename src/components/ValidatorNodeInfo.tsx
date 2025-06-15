@@ -1,6 +1,7 @@
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Server, Cpu, HardDrive, Wifi, Settings } from "lucide-react";
+import { Server, Cpu, HardDrive, Wifi, Settings, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import ValidatorEditableSettings from "./ValidatorEditableSettings";
 
@@ -19,48 +20,37 @@ interface NodeInfo {
 }
 
 const ValidatorNodeInfo = () => {
-  const { data: nodeInfo, isLoading, refetch } = useQuery({
+  const { data: nodeInfo, isLoading, error, refetch } = useQuery({
     queryKey: ['validatorNodeInfo'],
     queryFn: async (): Promise<NodeInfo> => {
-      // Call actual validator API for settings (replace with real fetch/IPC as needed)
-      try {
-        const response = await fetch('/rpc', {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            method: "afro_getNodeInfo",
-            params: [],
-            id: 88
-          }),
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        const data = await response.json();
-        if (data.result) return data.result;
-        throw new Error("Invalid response structure");
-      } catch (e) {
-        // fallback client-side demo data if backend isn't ready
-        return {
-          nodeId: "afro-validator-001",
-          version: "v1.2.3",
-          uptime: "3d 14h 25m",
-          cpuUsage: 45,
-          memoryUsage: 68,
-          diskUsage: 32,
-          networkIn: "1.2 MB/s",
-          networkOut: "0.8 MB/s",
-          validatorPhone: "254700000002",
-          smsApiStatus: "connected",
-          pendingAddresses: 2
-        };
+      const response = await fetch('/rpc', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "afro_getNodeInfo",
+          params: [],
+          id: 88
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+      
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message || 'RPC error');
+      }
+      
+      return data.result;
     },
-    refetchInterval: 5000
+    refetchInterval: 5000,
+    retry: false
   });
 
   // Save endpoint for validator settings
   async function handleSaveSettings(updated: { nodeId: string; validatorPhone: string }) {
-    // Wire to actual API
     const response = await fetch('/rpc', {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -77,6 +67,29 @@ const ValidatorNodeInfo = () => {
 
   if (isLoading) {
     return <div className="animate-pulse">Loading validator info...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              Validator Node Offline
+            </CardTitle>
+            <CardDescription className="text-red-500">
+              Unable to connect to validator service: {error.message}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-red-600">
+              The validator node is not responding. Please ensure the validator service is running.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const getUsageColor = (usage: number) => {
@@ -99,8 +112,8 @@ const ValidatorNodeInfo = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ValidatorEditableSettings
               settings={{
-                nodeId: nodeInfo?.nodeId ?? "",
-                validatorPhone: nodeInfo?.validatorPhone ?? ""
+                nodeId: nodeInfo?.nodeId || "",
+                validatorPhone: nodeInfo?.validatorPhone || ""
               }}
               onSave={handleSaveSettings}
             />
@@ -111,7 +124,7 @@ const ValidatorNodeInfo = () => {
                   CPU Usage:
                 </span>
                 <span className={`text-sm font-bold ${getUsageColor(nodeInfo?.cpuUsage || 0)}`}>
-                  {nodeInfo?.cpuUsage}%
+                  {nodeInfo?.cpuUsage || 0}%
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -120,7 +133,7 @@ const ValidatorNodeInfo = () => {
                   Memory:
                 </span>
                 <span className={`text-sm font-bold ${getUsageColor(nodeInfo?.memoryUsage || 0)}`}>
-                  {nodeInfo?.memoryUsage}%
+                  {nodeInfo?.memoryUsage || 0}%
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -129,7 +142,7 @@ const ValidatorNodeInfo = () => {
                   Disk:
                 </span>
                 <span className={`text-sm font-bold ${getUsageColor(nodeInfo?.diskUsage || 0)}`}>
-                  {nodeInfo?.diskUsage}%
+                  {nodeInfo?.diskUsage || 0}%
                 </span>
               </div>
             </div>
@@ -141,14 +154,14 @@ const ValidatorNodeInfo = () => {
                   <Wifi className="h-3 w-3" />
                   Network In
                 </div>
-                <div className="text-lg font-bold text-blue-500">{nodeInfo?.networkIn}</div>
+                <div className="text-lg font-bold text-blue-500">{nodeInfo?.networkIn || '0 MB/s'}</div>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1 text-sm font-medium">
                   <Wifi className="h-3 w-3" />
                   Network Out
                 </div>
-                <div className="text-lg font-bold text-purple-500">{nodeInfo?.networkOut}</div>
+                <div className="text-lg font-bold text-purple-500">{nodeInfo?.networkOut || '0 MB/s'}</div>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1 text-sm font-medium">
@@ -156,7 +169,7 @@ const ValidatorNodeInfo = () => {
                   SMS API
                 </div>
                 <Badge variant={nodeInfo?.smsApiStatus === 'connected' ? 'default' : 'destructive'}>
-                  {nodeInfo?.smsApiStatus}
+                  {nodeInfo?.smsApiStatus || 'disconnected'}
                 </Badge>
               </div>
             </div>

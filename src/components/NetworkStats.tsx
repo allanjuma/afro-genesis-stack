@@ -16,26 +16,56 @@ interface NetworkData {
 }
 
 const NetworkStats = () => {
-  const { data: networkData, isLoading } = useQuery({
+  const { data: networkData, isLoading, error } = useQuery({
     queryKey: ['networkStats'],
     queryFn: async (): Promise<NetworkData> => {
-      // Mock data for development - in production this would fetch from RPC
-      return {
-        chainId: 7878,
-        blockNumber: 12345,
-        peerCount: 8,
-        syncStatus: "synced",
-        hashRate: "1.2 MH/s",
-        difficulty: "0x1bc16d674ec80000",
-        gasPrice: "20 Gwei",
-        pendingTransactions: 3
-      };
+      const response = await fetch('/rpc', {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          method: "afro_getNetworkStats",
+          params: [],
+          id: 1
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      if (data.error) {
+        throw new Error(data.error.message || 'RPC error');
+      }
+      
+      return data.result;
     },
-    refetchInterval: 5000
+    refetchInterval: 5000,
+    retry: false
   });
 
   if (isLoading) {
     return <div className="animate-pulse">Loading network stats...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="border-red-200 bg-red-50">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium text-red-600">No Data</CardTitle>
+              <Network className="h-4 w-4 text-red-400" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">-</div>
+              <p className="text-xs text-red-500">Validator offline</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -46,8 +76,8 @@ const NetworkStats = () => {
           <Network className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{networkData?.chainId}</div>
-          <p className="text-xs text-muted-foreground">Afro Mainnet</p>
+          <div className="text-2xl font-bold">{networkData?.chainId || 0}</div>
+          <p className="text-xs text-muted-foreground">Afro Network</p>
         </CardContent>
       </Card>
 
@@ -57,9 +87,9 @@ const NetworkStats = () => {
           <Activity className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{networkData?.blockNumber.toLocaleString()}</div>
+          <div className="text-2xl font-bold">{networkData?.blockNumber?.toLocaleString() || 0}</div>
           <Badge variant={networkData?.syncStatus === 'synced' ? 'default' : 'secondary'}>
-            {networkData?.syncStatus}
+            {networkData?.syncStatus || 'unknown'}
           </Badge>
         </CardContent>
       </Card>
@@ -70,7 +100,7 @@ const NetworkStats = () => {
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{networkData?.peerCount}</div>
+          <div className="text-2xl font-bold">{networkData?.peerCount || 0}</div>
           <p className="text-xs text-muted-foreground">Active connections</p>
         </CardContent>
       </Card>
@@ -81,7 +111,7 @@ const NetworkStats = () => {
           <Gauge className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{networkData?.hashRate}</div>
+          <div className="text-2xl font-bold">{networkData?.hashRate || '0 H/s'}</div>
           <p className="text-xs text-muted-foreground">Network power</p>
         </CardContent>
       </Card>
