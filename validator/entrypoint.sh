@@ -1,4 +1,12 @@
+
 #!/bin/bash
+
+IPC_PATH="/root/.ethereum/geth.ipc"
+
+# Helper to execute commands on the running geth node
+g_exec() {
+    geth attach "$IPC_PATH" --exec "$1" 2>/dev/null
+}
 
 # ---------------------------------------------------------------- #
 #                  INLINED VALIDATOR FUNCTIONS                     #
@@ -14,7 +22,7 @@ award_validator_reward() {
     local msisdn=$3
 
     echo "Distributing validator reward: ${reward_amount} AFRO to ${validator_addr} for address generation: ${msisdn}"
-    local reward_tx=$(geth attach --exec "
+    local reward_tx=$(g_exec "
         eth.sendTransaction({
             from: eth.coinbase,
             to: '${validator_addr}',
@@ -22,7 +30,7 @@ award_validator_reward() {
             gas: 21000,
             gasPrice: eth.gasPrice
         })
-    " 2>/dev/null || echo "reward_pending")
+    " || echo "reward_pending")
 
     echo "Validator reward transaction: ${reward_tx}"
     echo "$(date): Validator ${validator_addr} earned ${reward_amount} AFRO for address generation (MSISDN: ${msisdn})" >> /root/.ethereum/validator_rewards.log
@@ -34,12 +42,12 @@ validate_transaction_fee() {
     local msisdn=$1
     local required_fee="1000000000000000"  # 0.001 ETH minimum transaction fee (in wei)
     echo "Validating transaction fee from MSISDN: ${msisdn}"
-    local tx_hash=$(geth attach --exec "eth.pendingTransactions.find(tx => tx.from.toLowerCase().includes('${msisdn}'.toLowerCase()))" 2>/dev/null)
+    local tx_hash=$(g_exec "eth.pendingTransactions.find(tx => tx.from.toLowerCase().includes('${msisdn}'.toLowerCase()))")
     if [ -z "$tx_hash" ]; then
         echo "No pending transaction found from ${msisdn}. Address generation requires payment of 0.001 ETH"
         return 1
     fi
-    local tx_value=$(geth attach --exec "eth.getTransaction('${tx_hash}').value" 2>/dev/null)
+    local tx_value=$(g_exec "eth.getTransaction('${tx_hash}').value")
     if [ -z "$tx_value" ] || [ "$tx_value" -lt "$required_fee" ]; then
         echo "Transaction fee insufficient. Required: 0.001 ETH, Received: ${tx_value} wei"
         return 1
@@ -74,7 +82,7 @@ add_address_to_pending_block() {
     local msisdn=$2
     local timestamp=$(date +%s)
     echo "Adding address to pending block: ${new_address}"
-    local current_block=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo "0")
+    local current_block=$(g_exec "eth.blockNumber" || echo "0")
     local address_entry="${new_address}|${msisdn}|${timestamp}|${current_block}|${AFRO_VALIDATOR_ADDRESS}"
     NEW_ADDRESSES_PENDING+=("$address_entry")
     echo "$address_entry" >> /root/.ethereum/pending_addresses.txt
@@ -232,7 +240,6 @@ geth \
     --syncmode "full" \
     --maxpeers 25 \
     --mine \
-    --miner.threads 1 \
     --miner.etherbase ${AFRO_VALIDATOR_ADDRESS} \
     --unlock ${AFRO_VALIDATOR_ADDRESS} \
     --password /dev/null \
@@ -243,10 +250,20 @@ GETH_PID=$!
 echo "Geth started with PID: $GETH_PID"
 
 echo "Waiting for Geth RPC to be available..."
-sleep 10 # Give it some time to start
+# Wait for the IPC file to be created before proceeding
+while [ ! -e "$IPC_PATH" ]; do
+    if ! kill -0 $GETH_PID 2>/dev/null; then
+        echo "Geth process appears to have died. Exiting."
+        exit 1
+    fi
+    echo "Waiting for Geth IPC file at $IPC_PATH..."
+    sleep 2
+done
+echo "Geth IPC file found. Geth is likely running."
+sleep 5 # Extra grace period for RPC to be fully ready
 
 # Main loop to process new blocks
-LATEST_PROCESSED_BLOCK=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo 0)
+LATEST_PROCESSED_BLOCK=$(g_exec "eth.blockNumber" || echo 0)
 echo "Starting block processing from block: $LATEST_PROCESSED_BLOCK"
 
 while true; do
@@ -256,7 +273,7 @@ while true; do
         exit 1
     fi
 
-    CURRENT_BLOCK=$(geth attach --exec "eth.blockNumber" 2>/dev/null)
+    CURRENT_BLOCK=$(g_exec "eth.blockNumber")
 
     if [ -n "$CURRENT_BLOCK" ] && [ "$CURRENT_BLOCK" -gt "$LATEST_PROCESSED_BLOCK" ]; then
         echo "New blocks detected. Processing from block $((LATEST_PROCESSED_BLOCK + 1)) to ${CURRENT_BLOCK}"
