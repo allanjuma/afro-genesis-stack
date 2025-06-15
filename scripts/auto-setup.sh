@@ -41,6 +41,7 @@ SKIP_DOCKER_CHECK=false
 PRODUCTION_MODE=false
 VALIDATOR_ONLY=false
 CEO_ONLY=false
+WEB_ONLY=false
 REINIT=false
 
 for arg in "$@"; do
@@ -65,6 +66,10 @@ for arg in "$@"; do
             CEO_ONLY=true
             shift
             ;;
+        --web-only)
+            WEB_ONLY=true
+            shift
+            ;;
         --reinit)
             REINIT=true
             echo -e "\033[1;33m⚠️  Reinitialization mode: --reinit flag detected and running (auto-setup.sh)\033[0m"
@@ -81,6 +86,7 @@ for arg in "$@"; do
             echo "  --production         Setup for production environment"
             echo "  --validator-only     Run only validator nodes (mainnet and testnet)"
             echo "  --ceo-only          Run only the CEO management agent"
+            echo "  --web-only          Run only the web frontend"
             echo "  --reinit            Force reinitialization of blockchain data"
             echo "  --help              Show this help message"
             echo ""
@@ -133,6 +139,8 @@ perform_system_checks() {
         check_port 30304 "Testnet P2P"
     elif [ "$CEO_ONLY" = true ]; then
         check_port 3000 "CEO Agent"
+    elif [ "$WEB_ONLY" = true ]; then
+        check_port 80 "Web Frontend"
     else
         check_port 80 "Web Frontend"
         check_port 3000 "CEO Agent"
@@ -203,6 +211,14 @@ setup_environment_config() {
         fi
     fi
     
+    # Set web-only mode
+    if [ "$WEB_ONLY" = true ]; then
+        log_info "Configuring for web-only mode..."
+        if [ -f .env ]; then
+            echo "WEB_ONLY=true" >> .env
+        fi
+    fi
+    
     # Set reinit mode
     if [ "$REINIT" = true ]; then
         log_info "Configuring for blockchain reinitialization..."
@@ -253,6 +269,19 @@ deploy_afro_stack() {
         log_info "Starting CEO service..."
         docker-compose up -d ceo
         
+    elif [ "$WEB_ONLY" = true ]; then
+        log_info "🌐 Deploying Web Container Only (no blockchain/ceo/validators/etc)..."
+
+        # Pull just the web image
+        log_info "Pulling web Docker image..."
+        docker-compose pull afro-web || true
+
+        # Start just the web
+        log_info "Starting web service (static frontend/docs)..."
+        docker-compose up -d afro-web
+
+        log_info "🌐 Web Landing/Docs deployed at: http://localhost"
+        return
     else
         log_info "🚀 Deploying Afro Network Stack..."
         
@@ -291,6 +320,9 @@ verify_deployment() {
     elif [ "$CEO_ONLY" = true ]; then
         log_info "CEO Management Agent URL:"
         echo "  🤖 CEO Agent: http://localhost:3000"
+    elif [ "$WEB_ONLY" = true ]; then
+        log_info "Web Frontend URL:"
+        echo "  🌐 Website: http://localhost"
     else
         log_info "Service URLs:"
         echo "  🌐 Website: http://localhost"
@@ -314,6 +346,11 @@ verify_deployment() {
         echo "  📋 View logs: docker-compose logs -f ceo"
         echo "  🛑 Stop CEO: docker-compose stop ceo"
         echo "  🔄 Restart: docker-compose restart ceo"
+    elif [ "$WEB_ONLY" = true ]; then
+        echo "  📊 Check web: docker-compose ps afro-web"
+        echo "  📋 View logs: docker-compose logs -f afro-web"
+        echo "  🛑 Stop web: docker-compose stop afro-web"
+        echo "  🔄 Restart: docker-compose restart afro-web"
     else
         echo "  📊 Check status: docker-compose ps"
         echo "  📋 View logs: docker-compose logs -f"
@@ -332,6 +369,9 @@ cleanup_on_failure() {
     elif [ "$CEO_ONLY" = true ]; then
         docker-compose stop ceo 2>/dev/null || true
         docker-compose rm -f ceo 2>/dev/null || true
+    elif [ "$WEB_ONLY" = true ]; then
+        docker-compose stop afro-web 2>/dev/null || true
+        docker-compose rm -f afro-web 2>/dev/null || true
     else
         docker-compose down --remove-orphans 2>/dev/null || true
     fi
@@ -344,6 +384,8 @@ main_setup() {
         log_info "🏗️ Starting Afro Network Validator-Only Setup"
     elif [ "$CEO_ONLY" = true ]; then
         log_info "🤖 Starting Afro Network CEO-Only Setup"
+    elif [ "$WEB_ONLY" = true ]; then
+        log_info "🌐 Starting Afro Network Web-Only Setup"
     else
         log_info "🚀 Starting Afro Network Automatic Setup"
     fi

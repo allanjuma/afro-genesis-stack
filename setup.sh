@@ -24,6 +24,7 @@ APPIMAGE_ONLY=false
 AUTO_SETUP=true
 VALIDATOR_ONLY=false
 CEO_ONLY=false
+WEB_ONLY=false
 REINIT=false
 
 show_help() {
@@ -35,6 +36,7 @@ show_help() {
     echo "  --appimage-only      Build only the AppImage package"
     echo "  --validator-only     Run only validator nodes (mainnet and testnet)"
     echo "  --ceo-only          Run only the CEO management agent"
+    echo "  --web-only          Run only the web container for static frontend/docs"
     echo "  --manual            Skip automatic setup, use manual mode"
     echo "  --force-reinstall   Force reinstall Docker Compose even if present"
     echo "  --skip-docker-check Skip Docker installation checks"
@@ -46,6 +48,7 @@ show_help() {
     echo "  $0                   Full stack setup with auto-install"
     echo "  $0 --validator-only  Only validator nodes"
     echo "  $0 --ceo-only        Only CEO management agent"
+    echo "  $0 --web-only        Only Web/Landing/Docs frontend"
     echo "  $0 --appimage-only   Build AppImage package only"
     echo "  $0 --production      Production deployment"
     echo "  $0 --reinit          Restart with fresh blockchain data"
@@ -66,6 +69,10 @@ for arg in "$@"; do
             ;;
         --ceo-only)
             CEO_ONLY=true
+            shift
+            ;;
+        --web-only)
+            WEB_ONLY=true
             shift
             ;;
         --manual)
@@ -93,6 +100,19 @@ if [ "$APPIMAGE_ONLY" = true ]; then
         build_appimage
     else
         echo "❌ AppImage builder not found"
+        exit 1
+    fi
+    exit 0
+fi
+
+# Handle web-only mode
+if [ "$WEB_ONLY" = true ]; then
+    echo "🌐 Setting up Web only (Landing/Docs)..."
+    if [ "$AUTO_SETUP" = true ] && [ -f "${SCRIPT_DIR}/scripts/auto-setup.sh" ]; then
+        echo "🤖 Running automatic web-only setup..."
+        main_setup --web-only "$@"
+    else
+        echo "❌ Web-only mode requires auto-setup"
         exit 1
     fi
     exit 0

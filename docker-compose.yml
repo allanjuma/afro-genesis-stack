@@ -1,4 +1,3 @@
-
 version: '3.8'
 
 services:
@@ -200,3 +199,6 @@ volumes:
   testnet_validator_data:
   testnet_db_data:
   ceo_data:
+
+# NOTE: Web-only mode is handled by starting only the afro-web service.
+# Use: docker-compose up -d afro-web (as the setup scripts do) for web-only deployments.
