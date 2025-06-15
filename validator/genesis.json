@@ -16,7 +16,7 @@
       "period": 15,
       "epoch": 30000
     },
-    "terminalTotalDifficulty": 8796093022208000
+    "terminalTotalDifficulty": "0x7fffffffffffffff"
   },
   "difficulty": "0x400",
   "gasLimit": "0x8000000",
