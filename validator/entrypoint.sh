@@ -229,18 +229,55 @@ if [ "$AFRO_NETWORK_TYPE" = "mainnet" ]; then
     # Afro mainnet bootnode (will work only if actual bootnode enode is resolvable from DNS)
     AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-mainnet.bitsoko.org:30303"
     if [[ "$AFRO_BOOTNODE_ENODE" =~ ^enode://[0-9a-fA-F]{128}@.+ ]]; then
-        GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
         echo "Using static mainnet bootnode: $AFRO_BOOTNODE_ENODE"
+        GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
     else
-        echo "No valid mainnet bootnode found; starting geth without bootnodes."
+        # --- Fallback Hack Starts Here ---
+        echo "No valid mainnet bootnode found; attempting fallback self-enode bootnode..."
+
+        # Wait for previous Geth process to start, if running, to get enode (should not start twice, but safeguard)
+        ENODE_FALLBACK=""
+        if [ -e "$IPC_PATH" ]; then
+            ENODE_FALLBACK=$(geth attach "$IPC_PATH" --exec 'admin.nodeInfo.enode' 2>/dev/null | tr -d '\n"')
+        fi
+        if [ -z "$ENODE_FALLBACK" ]; then
+            # Guess our node's enode: get enode address from keystore (eth.coinbase) but we may not have it yet
+            ENODE_FALLBACK="enode://$(cat /root/.ethereum/enode_url.txt 2>/dev/null)"
+        fi
+        if [[ "$ENODE_FALLBACK" =~ ^enode://[0-9a-fA-F]{128}@ ]]; then
+            # Replace domain/IP/port after '@' with first well-known hostname and port
+            ENODE_SELF_BOOTNODE=$(echo "$ENODE_FALLBACK" | sed -E 's/@[^:]+:([0-9]+)/@afro-mainnet-boot.bitsoko.org:30303/')
+            echo "Using self bootstrap as mainnet bootnode: $ENODE_SELF_BOOTNODE"
+            GETH_BOOTNODES_ARG="--bootnodes $ENODE_SELF_BOOTNODE"
+        else
+            echo "Could not determine self-enode for fallback. Proceeding to start as first node (no peers)."
+            GETH_BOOTNODES_ARG=""
+        fi
+        # --- Fallback Hack Ends Here ---
     fi
 elif [ "$AFRO_NETWORK_TYPE" = "testnet" ]; then
     AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-testnet.bitsoko.org:30304"
     if [[ "$AFRO_BOOTNODE_ENODE" =~ ^enode://[0-9a-fA-F]{128}@.+ ]]; then
-        GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
         echo "Using static testnet bootnode: $AFRO_BOOTNODE_ENODE"
+        GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
     else
-        echo "No valid testnet bootnode found; starting geth without bootnodes."
+        echo "No valid testnet bootnode found; attempting fallback self-enode bootnode..."
+
+        ENODE_FALLBACK=""
+        if [ -e "$IPC_PATH" ]; then
+            ENODE_FALLBACK=$(geth attach "$IPC_PATH" --exec 'admin.nodeInfo.enode' 2>/dev/null | tr -d '\n"')
+        fi
+        if [ -z "$ENODE_FALLBACK" ]; then
+            ENODE_FALLBACK="enode://$(cat /root/.ethereum/enode_url.txt 2>/dev/null)"
+        fi
+        if [[ "$ENODE_FALLBACK" =~ ^enode://[0-9a-fA-F]{128}@ ]]; then
+            ENODE_SELF_BOOTNODE=$(echo "$ENODE_FALLBACK" | sed -E 's/@[^:]+:([0-9]+)/@afro-testnet-boot.bitsoko.org:30304/')
+            echo "Using self bootstrap as testnet bootnode: $ENODE_SELF_BOOTNODE"
+            GETH_BOOTNODES_ARG="--bootnodes $ENODE_SELF_BOOTNODE"
+        else
+            echo "Could not determine self-enode for fallback. Proceeding to start as first node (no peers)."
+            GETH_BOOTNODES_ARG=""
+        fi
     fi
 fi
 
