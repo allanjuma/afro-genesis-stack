@@ -61,9 +61,25 @@ safe_test_docker_compose() {
     fi
 }
 
+# Check if Docker Compose v2 is available through Docker CLI
+check_docker_compose_v2() {
+    if docker compose version &> /dev/null 2>&1; then
+        local version=$(docker compose version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+        log_success "Docker Compose v2 found through Docker CLI: v$version"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Check if Docker Compose is installed and working
 check_docker_compose() {
-    # Check for docker-compose (v1) or docker compose (v2)
+    # First check for Docker Compose v2 through Docker CLI
+    if check_docker_compose_v2; then
+        return 0
+    fi
+    
+    # Then check for docker-compose (v1) standalone binary
     if command -v docker-compose &> /dev/null; then
         if safe_test_docker_compose "$(command -v docker-compose)"; then
             local version=$(docker-compose --version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
@@ -79,18 +95,21 @@ check_docker_compose() {
             log_warning "Docker Compose v1 found but not working properly"
             return 1
         fi
-    elif docker compose version &> /dev/null 2>&1; then
-        local version=$(docker compose version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
-        log_success "Docker Compose v2 found and working: v$version"
-        return 0
     else
-        log_warning "Docker Compose not found. Installing v$DOCKER_COMPOSE_VERSION..."
+        log_info "Docker Compose not found. Will install v$DOCKER_COMPOSE_VERSION..."
         return 1
     fi
 }
 
 # Install Docker Compose
 install_docker_compose() {
+    # Check one more time if Docker Compose v2 is available before installing v1
+    if check_docker_compose_v2; then
+        log_info "Docker Compose v2 is available through Docker CLI. Creating compatibility alias..."
+        setup_docker_compose_alias
+        return 0
+    fi
+    
     log_info "Installing Docker Compose v${DOCKER_COMPOSE_VERSION}..."
     
     # Detect architecture
@@ -178,6 +197,8 @@ EOF
         log_success "Docker Compose alias created"
     fi
 }
+
+# ... keep existing code (check_docker_daemon, setup_docker_permissions, main functions)
 
 # Verify Docker daemon is running
 check_docker_daemon() {
