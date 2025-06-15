@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Server, Cpu, HardDrive, Wifi, Settings, AlertCircle } from "lucide-react";
@@ -47,6 +46,20 @@ const ValidatorNodeInfo = () => {
     },
     refetchInterval: 5000,
     retry: false
+  });
+
+  // Add query to fetch the enode URL
+  const { data: enodeUrl } = useQuery({
+    queryKey: ['enodeUrl'],
+    queryFn: async () => {
+      const res = await fetch('/api/validator/enode_url.txt', { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch enode URL");
+      const txt = await res.text();
+      // Clean up whitespace/newlines.
+      return txt.trim();
+    },
+    refetchInterval: 30000, // re-poll every 30s in case node restarted
+    retry: false,
   });
 
   // Save endpoint for validator settings
@@ -109,6 +122,21 @@ const ValidatorNodeInfo = () => {
           <CardDescription>Real-time node performance and configuration</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* New: Display enode URL for sharing */}
+          <div>
+            <div className="flex flex-col md:flex-row md:items-center gap-2">
+              <span className="text-sm font-semibold">Enode URL:</span>
+              {enodeUrl ? (
+                <span className="font-mono text-xs bg-muted px-2 py-1 rounded break-all select-all">{enodeUrl}</span>
+              ) : (
+                <span className="text-xs text-gray-400 italic">Loading...</span>
+              )}
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              Share this enode URL with peers to let them connect to your validator node.
+            </div>
+          </div>
+          {/* ... keep rest of node stats UI ... */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ValidatorEditableSettings
               settings={{
@@ -147,6 +175,7 @@ const ValidatorNodeInfo = () => {
               </div>
             </div>
           </div>
+          {/* ... keep rest of content ... */}
           <div className="border-t pt-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
