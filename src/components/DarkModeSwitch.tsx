@@ -5,13 +5,13 @@ import { Moon, Sun } from "lucide-react";
 const getPrefersDark = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 const DarkModeSwitch = () => {
-  const [dark, setDark] = useState(() => {
-    // Prefer localStorage, else system
-    const pref = localStorage.getItem("theme");
-    if (pref === "dark") return true;
-    if (pref === "light") return false;
-    return getPrefersDark();
-  });
+  const [dark, setDark] = useState(true); // Default to dark mode
+
+  useEffect(() => {
+    // Force dark mode on mount
+    document.documentElement.classList.add("dark");
+    localStorage.setItem("theme", "dark");
+  }, []);
 
   useEffect(() => {
     if (dark) {
@@ -26,16 +26,16 @@ const DarkModeSwitch = () => {
   return (
     <button
       onClick={() => setDark((d) => !d)}
-      className="flex items-center gap-1 px-3 py-2 bg-primary/10 dark:bg-primary/20 rounded-lg hover:scale-110 transition shadow"
+      className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl hover:bg-accent/50 transition-all duration-200 hover:shadow-glow"
       aria-label="Toggle dark mode"
       type="button"
     >
       {dark ? (
-        <Sun className="h-5 w-5 text-yellow-300" />
+        <Sun className="h-5 w-5 text-amber-400" />
       ) : (
-        <Moon className="h-5 w-5 text-gray-700 dark:text-gray-100" />
+        <Moon className="h-5 w-5 text-purple-400" />
       )}
-      <span className="hidden md:inline text-xs text-foreground dark:text-secondary-foreground">{dark ? "Light" : "Dark"}</span>
+      <span className="hidden md:inline text-sm font-medium">{dark ? "Light" : "Dark"}</span>
     </button>
   );
 };
