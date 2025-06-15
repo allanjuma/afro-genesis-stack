@@ -42,6 +42,7 @@ const StackManager = () => {
   
   const [selectedMode, setSelectedMode] = useState<string>('production');
   const [isOperating, setIsOperating] = useState(false);
+  const [isDevelopmentMode, setIsDevelopmentMode] = useState(false);
 
   const operationModes: OperationMode[] = [
     {
@@ -78,6 +79,7 @@ const StackManager = () => {
 
   // Load stack status on component mount and check IPC connection
   useEffect(() => {
+    setIsDevelopmentMode(ipcAPI.isDevelopment());
     initializeConnection();
   }, []);
 
@@ -90,7 +92,9 @@ const StackManager = () => {
         await loadStackStatus();
       } else {
         setStackStatus(prev => ({ ...prev, connected: false }));
-        toast.error('IPC connection failed - running in demo mode');
+        if (!isDevelopmentMode) {
+          toast.error('IPC connection failed - running in demo mode');
+        }
       }
     } catch (error) {
       console.error('Failed to initialize IPC connection:', error);
@@ -202,6 +206,15 @@ const StackManager = () => {
   };
 
   const getConnectionBadge = () => {
+    if (isDevelopmentMode) {
+      return (
+        <div className="flex items-center gap-2">
+          <WifiOff className="h-4 w-4 text-orange-500" />
+          <Badge variant="secondary" className="bg-orange-500/20 text-orange-300">Development Mode</Badge>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center gap-2">
         {stackStatus.connected ? (
@@ -248,7 +261,13 @@ const StackManager = () => {
             {isOperating ? 'Checking...' : 'Check Connection'}
           </Button>
           
-          {!stackStatus.connected && (
+          {isDevelopmentMode ? (
+            <div className="text-sm text-muted-foreground bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+              <p>🚧 <strong>Development Mode Active</strong></p>
+              <p>This is a preview environment. IPC features are simulated and Docker operations are disabled.</p>
+              <p>Deploy the full Afro Network stack to enable all functionality.</p>
+            </div>
+          ) : !stackStatus.connected && (
             <div className="text-sm text-muted-foreground bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
               <p>⚠️ IPC connection not available. Running in demo mode.</p>
               <p>To enable full functionality, ensure the Afro Network backend is running.</p>

@@ -22,8 +22,26 @@ class IPCAPIService {
   private connectionRetries = 0;
   private maxRetries = 3;
   private retryDelay = 2000;
+  private isDevelopmentMode = false;
+
+  constructor() {
+    // Detect if we're in development/preview mode
+    this.isDevelopmentMode = window.location.hostname.includes('lovable.app') || 
+                            window.location.hostname === 'localhost' ||
+                            window.location.port !== '';
+    
+    if (this.isDevelopmentMode) {
+      console.log('🚧 Running in development mode - IPC features will be simulated');
+    }
+  }
 
   async checkConnection(): Promise<boolean> {
+    if (this.isDevelopmentMode) {
+      console.log('🚧 Development mode detected - simulating IPC connection');
+      this.isConnected = false; // Keep as disconnected but don't show errors
+      return false;
+    }
+
     try {
       console.log('Checking IPC connection...');
       
@@ -32,6 +50,12 @@ class IPCAPIService {
         headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(5000) // 5 second timeout
       });
+      
+      // Check if response is actually JSON and not HTML
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        throw new Error('Backend service not available (received HTML instead of JSON)');
+      }
       
       if (response.ok) {
         const data = await response.json();
@@ -46,7 +70,12 @@ class IPCAPIService {
       console.log('IPC connection check failed:', error);
       this.isConnected = false;
       
-      // Retry logic
+      // Don't retry in development mode or if it's clearly a development issue
+      if (this.isDevelopmentMode || error instanceof TypeError) {
+        return false;
+      }
+      
+      // Retry logic for production environments
       if (this.connectionRetries < this.maxRetries) {
         this.connectionRetries++;
         console.log(`Retrying connection (${this.connectionRetries}/${this.maxRetries})...`);
@@ -59,6 +88,15 @@ class IPCAPIService {
   }
 
   async executeDockerCommand(command: string): Promise<IPCResponse> {
+    if (this.isDevelopmentMode) {
+      console.log(`🚧 Development mode: would execute Docker command: ${command}`);
+      return {
+        success: false,
+        message: 'Docker commands not available in development mode',
+        error: 'Development environment - Docker operations disabled'
+      };
+    }
+
     try {
       console.log(`Executing Docker command via IPC: ${command}`);
       
@@ -105,6 +143,18 @@ class IPCAPIService {
   }
 
   async getStackStatus(): Promise<StackStatus> {
+    if (this.isDevelopmentMode) {
+      console.log('🚧 Development mode: returning simulated stack status');
+      return {
+        mainnet: false,
+        testnet: false,
+        explorer: false,
+        website: false,
+        ceo: false,
+        connected: false
+      };
+    }
+
     try {
       console.log('Getting stack status via IPC...');
       
@@ -193,6 +243,15 @@ class IPCAPIService {
   }
 
   async startStack(services?: string[]): Promise<IPCResponse> {
+    if (this.isDevelopmentMode) {
+      toast.info('Development mode: Stack operations are simulated');
+      return { 
+        success: false, 
+        message: 'Stack operations not available in development mode',
+        error: 'Development environment'
+      };
+    }
+
     if (!this.isConnected) {
       const connected = await this.checkConnection();
       if (!connected) {
@@ -216,6 +275,15 @@ class IPCAPIService {
   }
 
   async stopStack(services?: string[]): Promise<IPCResponse> {
+    if (this.isDevelopmentMode) {
+      toast.info('Development mode: Stack operations are simulated');
+      return { 
+        success: false, 
+        message: 'Stack operations not available in development mode',
+        error: 'Development environment'
+      };
+    }
+
     if (!this.isConnected) {
       const connected = await this.checkConnection();
       if (!connected) {
@@ -240,6 +308,15 @@ class IPCAPIService {
   }
 
   async restartStack(services?: string[]): Promise<IPCResponse> {
+    if (this.isDevelopmentMode) {
+      toast.info('Development mode: Stack operations are simulated');
+      return { 
+        success: false, 
+        message: 'Stack operations not available in development mode',
+        error: 'Development environment'
+      };
+    }
+
     if (!this.isConnected) {
       const connected = await this.checkConnection();
       if (!connected) {
@@ -253,7 +330,7 @@ class IPCAPIService {
     
     const result = await this.executeDockerCommand(command);
     
-    if (result.success) {
+    result.success) {
       toast.success('Stack restarted successfully');
     } else {
       toast.error(`Failed to restart stack: ${result.message}`);
@@ -263,6 +340,15 @@ class IPCAPIService {
   }
 
   async pullUpdates(): Promise<IPCResponse> {
+    if (this.isDevelopmentMode) {
+      toast.info('Development mode: Git operations are simulated');
+      return { 
+        success: false, 
+        message: 'Git operations not available in development mode',
+        error: 'Development environment'
+      };
+    }
+
     if (!this.isConnected) {
       const connected = await this.checkConnection();
       if (!connected) {
@@ -283,6 +369,15 @@ class IPCAPIService {
   }
 
   async buildContainers(): Promise<IPCResponse> {
+    if (this.isDevelopmentMode) {
+      toast.info('Development mode: Container builds are simulated');
+      return { 
+        success: false, 
+        message: 'Container builds not available in development mode',
+        error: 'Development environment'
+      };
+    }
+
     if (!this.isConnected) {
       const connected = await this.checkConnection();
       if (!connected) {
@@ -310,6 +405,11 @@ class IPCAPIService {
   resetConnection(): void {
     this.isConnected = false;
     this.connectionRetries = 0;
+  }
+
+  // Check if running in development mode
+  isDevelopment(): boolean {
+    return this.isDevelopmentMode;
   }
 }
 
