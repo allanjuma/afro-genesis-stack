@@ -1,10 +1,8 @@
-
 #!/bin/bash
 
 # ---------------------------------------------------------------- #
 #                  INLINED VALIDATOR FUNCTIONS                     #
 # ---------------------------------------------------------------- #
-IPC_PATH="/root/.ethereum/geth.ipc"
 
 # --- Inlined from validator/scripts/rewards.sh ---
 AFRO_ADDRESS_REWARD="10000000000000000000"  # 10 AFRO (18 decimals)
@@ -16,7 +14,7 @@ award_validator_reward() {
     local msisdn=$3
 
     echo "Distributing validator reward: ${reward_amount} AFRO to ${validator_addr} for address generation: ${msisdn}"
-    local reward_tx=$(geth attach ${IPC_PATH} --exec "
+    local reward_tx=$(geth attach --exec "
         eth.sendTransaction({
             from: eth.coinbase,
             to: '${validator_addr}',
@@ -36,12 +34,12 @@ validate_transaction_fee() {
     local msisdn=$1
     local required_fee="1000000000000000"  # 0.001 ETH minimum transaction fee (in wei)
     echo "Validating transaction fee from MSISDN: ${msisdn}"
-    local tx_hash=$(geth attach ${IPC_PATH} --exec "eth.pendingTransactions.find(tx => tx.from.toLowerCase().includes('${msisdn}'.toLowerCase()))" 2>/dev/null)
+    local tx_hash=$(geth attach --exec "eth.pendingTransactions.find(tx => tx.from.toLowerCase().includes('${msisdn}'.toLowerCase()))" 2>/dev/null)
     if [ -z "$tx_hash" ]; then
         echo "No pending transaction found from ${msisdn}. Address generation requires payment of 0.001 ETH"
         return 1
     fi
-    local tx_value=$(geth attach ${IPC_PATH} --exec "eth.getTransaction('${tx_hash}').value" 2>/dev/null)
+    local tx_value=$(geth attach --exec "eth.getTransaction('${tx_hash}').value" 2>/dev/null)
     if [ -z "$tx_value" ] || [ "$tx_value" -lt "$required_fee" ]; then
         echo "Transaction fee insufficient. Required: 0.001 ETH, Received: ${tx_value} wei"
         return 1
@@ -76,7 +74,7 @@ add_address_to_pending_block() {
     local msisdn=$2
     local timestamp=$(date +%s)
     echo "Adding address to pending block: ${new_address}"
-    local current_block=$(geth attach ${IPC_PATH} --exec "eth.blockNumber" 2>/dev/null || echo "0")
+    local current_block=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo "0")
     local address_entry="${new_address}|${msisdn}|${timestamp}|${current_block}|${AFRO_VALIDATOR_ADDRESS}"
     NEW_ADDRESSES_PENDING+=("$address_entry")
     echo "$address_entry" >> /root/.ethereum/pending_addresses.txt
@@ -230,9 +228,11 @@ geth \
     --ws.origins "*" \
     --ws.api "eth,net,web3,personal,admin,miner,afro" \
     --port ${P2P_PORT} \
+    --bootnodes "enode://$(geth --exec "admin.nodeInfo.id" --datadir /root/.ethereum/.tmp attach)@127.0.0.1:${P2P_PORT}" \
     --syncmode "full" \
     --maxpeers 25 \
     --mine \
+    --miner.threads 1 \
     --miner.etherbase ${AFRO_VALIDATOR_ADDRESS} \
     --unlock ${AFRO_VALIDATOR_ADDRESS} \
     --password /dev/null \
@@ -242,14 +242,11 @@ geth \
 GETH_PID=$!
 echo "Geth started with PID: $GETH_PID"
 
-echo "Waiting for Geth IPC to be available..."
-while [ ! -S ${IPC_PATH} ]; do
-    sleep 1
-done
-echo "Geth IPC is available."
+echo "Waiting for Geth RPC to be available..."
+sleep 10 # Give it some time to start
 
 # Main loop to process new blocks
-LATEST_PROCESSED_BLOCK=$(geth attach ${IPC_PATH} --exec "eth.blockNumber" 2>/dev/null || echo 0)
+LATEST_PROCESSED_BLOCK=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo 0)
 echo "Starting block processing from block: $LATEST_PROCESSED_BLOCK"
 
 while true; do
@@ -259,7 +256,7 @@ while true; do
         exit 1
     fi
 
-    CURRENT_BLOCK=$(geth attach ${IPC_PATH} --exec "eth.blockNumber" 2>/dev/null)
+    CURRENT_BLOCK=$(geth attach --exec "eth.blockNumber" 2>/dev/null)
 
     if [ -n "$CURRENT_BLOCK" ] && [ "$CURRENT_BLOCK" -gt "$LATEST_PROCESSED_BLOCK" ]; then
         echo "New blocks detected. Processing from block $((LATEST_PROCESSED_BLOCK + 1)) to ${CURRENT_BLOCK}"
