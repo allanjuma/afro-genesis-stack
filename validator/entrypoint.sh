@@ -224,14 +224,17 @@ echo "🚀 Starting geth node in background..."
 
 # Use a static bootnode for mainnet or testnet (production)
 GETH_BOOTNODES_ARG=""
-if [ "$AFRO_NETWORK_TYPE" = "mainnet" ]; then
-    # Afro mainnet bootnode (will work only if actual bootnode enode is resolvable from DNS)
-    AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-mainnet.bitsoko.org:30303"
-    GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
-elif [ "$AFRO_NETWORK_TYPE" = "testnet" ]; then
-    AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-testnet.bitsoko.org:30304"
-    GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
-fi
+# DISABLED: default zero enode string causes geth to fail. See https://github.com/ethereum/go-ethereum/issues/17526
+# If you have a real Afro bootnode address, uncomment and configure below:
+#
+# if [ "$AFRO_NETWORK_TYPE" = "mainnet" ]; then
+#     # Afro mainnet bootnode (will work only if actual bootnode enode is resolvable from DNS)
+#     AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-mainnet.bitsoko.org:30303"
+#     GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
+# elif [ "$AFRO_NETWORK_TYPE" = "testnet" ]; then
+#     AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-testnet.bitsoko.org:30304"
+#     GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
+# fi
 
 geth \
     --networkid ${NETWORK_ID} \
