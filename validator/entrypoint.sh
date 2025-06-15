@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # ---------------------------------------------------------------- #
@@ -213,15 +212,9 @@ echo "Starting Afro validator..."
 echo "Network Type: ${AFRO_NETWORK_TYPE}"
 echo "Validator Address: ${AFRO_VALIDATOR_ADDRESS}"
 
-# Block mining hook to include addresses with rewards
-on_new_block() {
-    local block_number=$1
-    echo "New block mined: ${block_number}"
-    include_addresses_in_block "$block_number"
-}
-
-# Start geth
-exec geth \
+# Start geth in the background
+echo "🚀 Starting geth node in background..."
+geth \
     --networkid ${NETWORK_ID} \
     --datadir /root/.ethereum \
     --http \
@@ -244,4 +237,36 @@ exec geth \
     --unlock ${AFRO_VALIDATOR_ADDRESS} \
     --password /dev/null \
     --allow-insecure-unlock \
-    --verbosity 3
+    --verbosity 3 &
+
+GETH_PID=$!
+echo "Geth started with PID: $GETH_PID"
+
+echo "Waiting for Geth RPC to be available..."
+sleep 10 # Give it some time to start
+
+# Main loop to process new blocks
+LATEST_PROCESSED_BLOCK=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo 0)
+echo "Starting block processing from block: $LATEST_PROCESSED_BLOCK"
+
+while true; do
+    # Check if geth is still running
+    if ! kill -0 $GETH_PID 2>/dev/null; then
+        echo "Geth process not found. Exiting."
+        exit 1
+    fi
+
+    CURRENT_BLOCK=$(geth attach --exec "eth.blockNumber" 2>/dev/null)
+
+    if [ -n "$CURRENT_BLOCK" ] && [ "$CURRENT_BLOCK" -gt "$LATEST_PROCESSED_BLOCK" ]; then
+        echo "New blocks detected. Processing from block $((LATEST_PROCESSED_BLOCK + 1)) to ${CURRENT_BLOCK}"
+        for block_num in $(seq $((LATEST_PROCESSED_BLOCK + 1)) $CURRENT_BLOCK); do
+            echo "Processing block: ${block_num}"
+            include_addresses_in_block "$block_num"
+        done
+        LATEST_PROCESSED_BLOCK=$CURRENT_BLOCK
+    fi
+    sleep 15 # Check for new blocks every 15 seconds
+done
+
+wait $GETH_PID
