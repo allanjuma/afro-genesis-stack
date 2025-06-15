@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Settings, Save, RotateCcw } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Settings, Save, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 interface EndpointConfig {
@@ -111,6 +111,14 @@ const EndpointManager = () => {
   ]);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+
+  const toggleSection = (category: string) => {
+    setOpenSections(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   const handleEndpointChange = (index: number, value: string) => {
     const updated = [...endpoints];
@@ -176,64 +184,82 @@ const EndpointManager = () => {
       </CardHeader>
       <CardContent className="space-y-6">
         {Object.entries(groupedEndpoints).map(([category, categoryEndpoints]) => (
-          <div key={category} className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Badge className={getCategoryColor(category)}>
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </Badge>
-              <span className="text-sm text-muted-foreground">
-                {categoryEndpoints.length} service{categoryEndpoints.length !== 1 ? 's' : ''}
-              </span>
-            </div>
+          <Collapsible
+            key={category}
+            open={openSections[category]}
+            onOpenChange={() => toggleSection(category)}
+          >
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex w-full items-center justify-between p-0 h-auto hover:bg-transparent"
+              >
+                <div className="flex items-center gap-2">
+                  <Badge className={getCategoryColor(category)}>
+                    {category.charAt(0).toUpperCase() + category.slice(1)}
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    {categoryEndpoints.length} service{categoryEndpoints.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                {openSections[category] ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+              </Button>
+            </CollapsibleTrigger>
             
-            <div className="grid gap-4">
-              {categoryEndpoints.map((endpoint, categoryIndex) => {
-                const globalIndex = endpoints.findIndex(e => e === endpoint);
-                return (
-                  <div key={globalIndex} className="space-y-2 p-4 border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="font-medium">{endpoint.service}</Label>
-                        <p className="text-sm text-muted-foreground">{endpoint.description}</p>
-                      </div>
-                      <Badge variant="outline">Port {endpoint.port}</Badge>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Default Endpoint:</Label>
-                      <div className="p-2 bg-muted rounded text-sm font-mono">
-                        {endpoint.defaultEndpoint}
+            <CollapsibleContent className="space-y-4 mt-4">
+              <div className="grid gap-4">
+                {categoryEndpoints.map((endpoint, categoryIndex) => {
+                  const globalIndex = endpoints.findIndex(e => e === endpoint);
+                  return (
+                    <div key={globalIndex} className="space-y-2 p-4 border rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="font-medium">{endpoint.service}</Label>
+                          <p className="text-sm text-muted-foreground">{endpoint.description}</p>
+                        </div>
+                        <Badge variant="outline">Port {endpoint.port}</Badge>
                       </div>
                       
-                      <Label className="text-xs text-muted-foreground">Custom Endpoint (optional):</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder={`e.g., http://10.144.93.33:${endpoint.port} or afro-mainnet.bitsoko.org`}
-                          value={endpoint.customEndpoint}
-                          onChange={(e) => handleEndpointChange(globalIndex, e.target.value)}
-                          className="font-mono text-sm"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleReset(globalIndex)}
-                          disabled={!endpoint.customEndpoint}
-                          className="flex items-center gap-1"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Reset
-                        </Button>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Default Endpoint:</Label>
+                        <div className="p-2 bg-muted rounded text-sm font-mono">
+                          {endpoint.defaultEndpoint}
+                        </div>
+                        
+                        <Label className="text-xs text-muted-foreground">Custom Endpoint (optional):</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder={`e.g., http://10.144.93.33:${endpoint.port} or afro-mainnet.bitsoko.org`}
+                            value={endpoint.customEndpoint}
+                            onChange={(e) => handleEndpointChange(globalIndex, e.target.value)}
+                            className="font-mono text-sm"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReset(globalIndex)}
+                            disabled={!endpoint.customEndpoint}
+                            className="flex items-center gap-1"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Reset
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            </CollapsibleContent>
             
             {category !== Object.keys(groupedEndpoints)[Object.keys(groupedEndpoints).length - 1] && (
-              <Separator />
+              <Separator className="mt-4" />
             )}
-          </div>
+          </Collapsible>
         ))}
         
         <div className="p-4 bg-muted/50 rounded-lg">
