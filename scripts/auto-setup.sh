@@ -67,6 +67,7 @@ for arg in "$@"; do
             ;;
         --reinit)
             REINIT=true
+            echo -e "\033[1;33m⚠️  Reinitialization mode: --reinit flag detected and running (auto-setup.sh)\033[0m"
             shift
             ;;
         --help)
@@ -216,7 +217,7 @@ setup_environment_config() {
 deploy_afro_stack() {
     # Handle reinitialization
     if [ "$REINIT" = true ]; then
-        log_info "🔄 Reinitializing blockchain data..."
+        echo -e "\033[1;33m🔄 Reinitializing blockchain data (auto-setup.sh detected --reinit flag)...\033[0m"
         
         # Stop containers
         log_info "🛑 Stopping containers..."

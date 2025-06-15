@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Afro Network Docker Stack Setup Script
@@ -75,6 +74,7 @@ for arg in "$@"; do
             ;;
         --reinit)
             REINIT=true
+            echo "⚠️  Reinitialization mode: --reinit flag detected and running"
             shift
             ;;
         --help)
@@ -100,7 +100,7 @@ fi
 
 # Handle reinit mode
 if [ "$REINIT" = true ]; then
-    echo "🔄 Reinitializing blockchain data..."
+    echo "🔄 Reinitializing blockchain data (setup.sh detected --reinit flag)..."
     
     # Stop containers
     echo "🛑 Stopping containers..."
@@ -155,4 +155,24 @@ if [ "$CEO_ONLY" = true ]; then
     exit 0
 fi
 
-# ... keep existing code (legacy manual setup mode)
+# Legacy manual setup mode
+echo "⚠️  No auto-setup script found. Using legacy manual setup mode."
+
+# Install Docker Compose
+install_docker_compose
+
+# Generate environment configuration
+generate_env_file
+
+# Manage Docker containers
+manage_docker_stack
+
+# Check service health
+check_service_health
+
+echo "✅ Afro Network setup complete!"
+echo "You can now access the services at the following URLs:"
+echo "  - Website: http://localhost"
+echo "  - Mainnet Explorer: http://localhost:4000"
+echo "  - Testnet Explorer: http://localhost:4001"
+echo "  - CEO Agent: http://localhost:3000"
