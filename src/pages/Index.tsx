@@ -8,6 +8,7 @@ import StackManager from "@/components/StackManager";
 import { Activity, Network, Phone, Server, Settings } from "lucide-react";
 import DarkModeSwitch from "@/components/DarkModeSwitch";
 import ServiceLogs from "@/components/ServiceLogs";
+import CeoAgentManager from "@/components/CeoAgentManager";
 
 const Index = () => {
   return (
@@ -20,14 +21,16 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">Afro Network Validator Dashboard</h1>
-              <p className="text-muted-foreground">Monitor network performance and validator operations</p>
+              <p className="text-muted-foreground">
+                Monitor network performance, validator operations, and manage the CEO AI Agent
+              </p>
             </div>
           </div>
           <DarkModeSwitch />
         </div>
 
         <Tabs defaultValue="network" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="network" className="flex items-center gap-2">
               <Network className="h-4 w-4" />
               Network
@@ -43,6 +46,10 @@ const Index = () => {
             <TabsTrigger value="stack" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               Stack Manager
+            </TabsTrigger>
+            <TabsTrigger value="ceo" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              CEO Agent
             </TabsTrigger>
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <Activity className="h-4 w-4" />
@@ -80,7 +87,21 @@ const Index = () => {
             <StackManager />
           </TabsContent>
 
+          {/* CEO AGENT FUNCTIONS */}
+          <TabsContent value="ceo" className="space-y-6">
+            <CeoAgentManager />
+          </TabsContent>
+
+          {/* Logs */}
           <TabsContent value="logs" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>System Logs</CardTitle>
+                <CardDescription>
+                  View recent activity and errors from all stack services. To see CEO Agent logs, select <b>CEO Service</b> (<code>afro-ceo</code>) in the dropdown below.
+                </CardDescription>
+              </CardHeader>
+            </Card>
             <ServiceLogs />
           </TabsContent>
         </Tabs>
