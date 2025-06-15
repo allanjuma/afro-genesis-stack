@@ -1,9 +1,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Server, Cpu, HardDrive, Wifi, Settings, AlertCircle } from "lucide-react";
+import { Server, Cpu, HardDrive, Wifi, Settings, AlertCircle, Copy } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import ValidatorEditableSettings from "./ValidatorEditableSettings";
+import React from "react";
 
 interface NodeInfo {
   nodeId: string;
@@ -47,6 +48,19 @@ const ValidatorNodeInfo = () => {
     },
     refetchInterval: 5000,
     retry: false
+  });
+
+  // Enode URL fetcher
+  const { data: enodeUrl, isLoading: loadingEnode, error: enodeError, refetch: refetchEnode } = useQuery({
+    queryKey: ['validatorEnodeUrl'],
+    queryFn: async () => {
+      const res = await fetch('/api/validator/enode_url.txt?' + Date.now());
+      if (!res.ok) throw new Error("Cannot fetch enode URL");
+      const v = await res.text();
+      return v.trim();
+    },
+    refetchInterval: 8000,
+    retry: false,
   });
 
   // Save endpoint for validator settings
@@ -109,6 +123,40 @@ const ValidatorNodeInfo = () => {
           <CardDescription>Real-time node performance and configuration</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Enode URL display */}
+          <div>
+            <div className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-2">
+              Node Enode URL
+            </div>
+            <div className="flex items-center gap-2 bg-gray-50 border rounded p-2">
+              {loadingEnode ? (
+                <span className="animate-pulse text-gray-400">Fetching enode URL...</span>
+              ) : enodeError ? (
+                <span className="text-red-500">Not available</span>
+              ) : enodeUrl ? (
+                <>
+                  <span className="break-all text-xs">{enodeUrl}</span>
+                  <button
+                    className="ml-2 p-1 rounded hover:bg-gray-100"
+                    aria-label="Copy enode URL"
+                    onClick={() => {
+                      navigator.clipboard.writeText(enodeUrl);
+                    }}
+                    type="button"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </>
+              ) : (
+                <span className="text-gray-400">Not available</span>
+              )}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-1">
+              Share this enode URL for peers to connect to your node.
+            </div>
+          </div>
+          {/* End enode URL display */}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <ValidatorEditableSettings
               settings={{

@@ -222,15 +222,26 @@ echo "Validator Address: ${AFRO_VALIDATOR_ADDRESS}"
 # Start geth in the background
 echo "🚀 Starting geth node in background..."
 
-# Use a static bootnode for mainnet or testnet (production)
 GETH_BOOTNODES_ARG=""
+# Only add the bootnodes argument if you have a valid AFRO_BOOTNODE_ENODE
+# Accept empty or invalid enode as "none"
 if [ "$AFRO_NETWORK_TYPE" = "mainnet" ]; then
     # Afro mainnet bootnode (will work only if actual bootnode enode is resolvable from DNS)
     AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-mainnet.bitsoko.org:30303"
-    GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
+    if [[ "$AFRO_BOOTNODE_ENODE" =~ ^enode://[0-9a-fA-F]{128}@.+ ]]; then
+        GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
+        echo "Using static mainnet bootnode: $AFRO_BOOTNODE_ENODE"
+    else
+        echo "No valid mainnet bootnode found; starting geth without bootnodes."
+    fi
 elif [ "$AFRO_NETWORK_TYPE" = "testnet" ]; then
     AFRO_BOOTNODE_ENODE="enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@afro-testnet.bitsoko.org:30304"
-    GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
+    if [[ "$AFRO_BOOTNODE_ENODE" =~ ^enode://[0-9a-fA-F]{128}@.+ ]]; then
+        GETH_BOOTNODES_ARG="--bootnodes $AFRO_BOOTNODE_ENODE"
+        echo "Using static testnet bootnode: $AFRO_BOOTNODE_ENODE"
+    else
+        echo "No valid testnet bootnode found; starting geth without bootnodes."
+    fi
 fi
 
 geth \
@@ -272,6 +283,16 @@ while [ ! -e "$IPC_PATH" ]; do
 done
 echo "Geth IPC file found. Geth is likely running."
 sleep 5 # Extra grace period for RPC to be fully ready
+
+# --- New section: Report and store enode URL ---
+ENODE_URL=$(geth attach $IPC_PATH --exec 'admin.nodeInfo.enode' 2>/dev/null | tr -d '\n"')
+if [ -n "$ENODE_URL" ]; then
+    echo "Current node enode URL: $ENODE_URL"
+    echo "$ENODE_URL" > /root/.ethereum/enode_url.txt
+else
+    echo "Failed to extract enode URL; will retry shortly."
+    echo "" > /root/.ethereum/enode_url.txt
+fi
 
 # Main loop to process new blocks
 LATEST_PROCESSED_BLOCK=$(g_exec "eth.blockNumber" || echo 0)
