@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Settings, Save, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { stackAPI } from "@/services/stackAPI";
 
 interface EndpointConfig {
   service: string;
@@ -129,9 +130,18 @@ const EndpointManager = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Here you would typically save to backend/config
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      toast.success("Endpoint configurations saved successfully");
+      // Save via API and apply changes
+      const resp = await stackAPI.saveEndpointConfig(endpoints);
+
+      if (resp.success) {
+        toast.success("Endpoints saved and services updated.");
+        // If backend returns which services were restarted, show them
+        if (resp.restarted && Array.isArray(resp.restarted) && resp.restarted.length > 0) {
+          toast.success("Restarted: " + resp.restarted.join(", "));
+        }
+      } else {
+        toast.error("Failed to save endpoints: " + (resp.message || ""));
+      }
     } catch (error) {
       toast.error("Failed to save endpoint configurations");
     } finally {

@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 export interface StackOperation {
@@ -17,6 +16,15 @@ export interface StackResponse {
   services?: string[];
   logs?: string[];
   output?: string;
+}
+
+export interface EndpointConfig {
+  service: string;
+  defaultEndpoint: string;
+  customEndpoint?: string;
+  port: string;
+  description?: string;
+  category: 'validator' | 'explorer' | 'database' | 'ai' | 'web';
 }
 
 class StackAPIService {
@@ -124,6 +132,38 @@ class StackAPIService {
         website: false,
         ceo: false
       };
+    }
+  }
+
+  /**
+   * Save endpoint configuration and restart relevant containers/services.
+   * Assumes backend endpoint exists at /api/ceo/set-endpoints
+   */
+  async saveEndpointConfig(endpoints: EndpointConfig[]): Promise<{ success: boolean; restarted?: string[]; message?: string }> {
+    try {
+      const response = await fetch('/api/ceo/set-endpoints', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ endpoints }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Save failed: ${response.status} ${response.statusText}`);
+      }
+
+      const resp = await response.json();
+      if (resp.success) {
+        toast.success("Settings saved to containers.");
+      } else {
+        toast.error("Failed to save settings: " + (resp.message || 'Unknown error'));
+      }
+      return resp;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      toast.error("Saving settings failed: " + msg);
+      return { success: false, message: msg };
     }
   }
 }
