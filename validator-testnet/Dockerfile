@@ -10,8 +10,8 @@ RUN apk add --no-cache bash
 # Copy genesis configuration
 COPY validator-testnet/genesis-testnet.json /root/genesis.json
 
-# Initialize the blockchain with genesis
-RUN geth init /root/genesis.json
+# Remove any existing data and initialize fresh
+RUN rm -rf /root/.ethereum && geth init /root/genesis.json
 
 # Use the unified entrypoint script
 COPY validator/entrypoint.sh /entrypoint.sh
