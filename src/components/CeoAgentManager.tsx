@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Terminal, Info, Settings, List, Plus, Edit, Brain, Sparkles, Zap, Server, Activity, Database, Globe, Eye, Container, Cpu, MemoryStick, HardDrive } from "lucide-react";
+import { Brain, Sparkles, Zap, Activity, List, Plus, Edit, Info } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
@@ -15,16 +16,6 @@ type CeoStackStatus = {
   explorer: boolean;
   website: boolean;
   ceo: boolean;
-};
-
-type ContainerInfo = {
-  name: string;
-  status: 'running' | 'stopped' | 'error';
-  cpu: number;
-  memory: number;
-  uptime: string;
-  ports: string[];
-  image: string;
 };
 
 type Proposal = {
@@ -99,18 +90,6 @@ export default function CeoAgentManager() {
   const nodeId = getNodeId();
   const queryClient = useQueryClient();
 
-  // Mock container data - in real implementation, this would come from Docker API
-  const containers: ContainerInfo[] = [
-    { name: 'afro-validator', status: 'running', cpu: 45, memory: 512, uptime: '2d 4h', ports: ['8545', '30303'], image: 'afro/validator:latest' },
-    { name: 'afro-testnet-validator', status: 'running', cpu: 32, memory: 384, uptime: '2d 4h', ports: ['8547', '30304'], image: 'afro/validator:latest' },
-    { name: 'afro-explorer', status: 'running', cpu: 28, memory: 256, uptime: '2d 3h', ports: ['4000'], image: 'afro/explorer:latest' },
-    { name: 'afro-testnet-explorer', status: 'running', cpu: 25, memory: 256, uptime: '2d 3h', ports: ['4001'], image: 'afro/explorer:latest' },
-    { name: 'afro-db', status: 'running', cpu: 15, memory: 128, uptime: '2d 4h', ports: ['5432'], image: 'postgres:14' },
-    { name: 'afro-testnet-db', status: 'running', cpu: 12, memory: 128, uptime: '2d 4h', ports: ['5432'], image: 'postgres:14' },
-    { name: 'afro-web', status: 'running', cpu: 8, memory: 64, uptime: '2d 2h', ports: ['80'], image: 'afro/web:latest' },
-    { name: 'afro-ceo', status: 'running', cpu: 35, memory: 192, uptime: '1d 8h', ports: ['3000'], image: 'afro/ceo:latest' },
-  ];
-
   // Fetch CEO Agent status
   const { data: stackStatus, refetch, isLoading, error } = useQuery({
     queryKey: ["ceoStackStatus"],
@@ -155,35 +134,6 @@ export default function CeoAgentManager() {
         variant: "destructive"
       });
       setLoadingOp(null);
-    }
-  });
-
-  // Container operation mutation
-  const { mutate: operateContainer } = useMutation({
-    mutationFn: async ({ container, operation }: { container: string, operation: string }) => {
-      const res = await fetch("/api/ceo/container-operation", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ container, operation }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        throw new Error(data.message || "Operation failed");
-      }
-      return data;
-    },
-    onSuccess: (data, variables) => {
-      toast({
-        title: `Container ${variables.operation}`,
-        description: `${variables.container} ${variables.operation} successful`,
-      });
-    },
-    onError: (e: any, variables) => {
-      toast({
-        title: "Container operation failed",
-        description: e.message || "Error",
-        variant: "destructive"
-      });
     }
   });
 
@@ -347,75 +297,75 @@ export default function CeoAgentManager() {
     }
   };
 
-  const getContainerIcon = (name: string) => {
-    if (name.includes('validator')) return Server;
-    if (name.includes('explorer')) return Eye;
-    if (name.includes('db')) return Database;
-    if (name.includes('web')) return Globe;
-    if (name.includes('ceo')) return Brain;
-    return Container;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'running': return 'bg-green-100 text-green-800';
-      case 'stopped': return 'bg-red-100 text-red-800';
-      case 'error': return 'bg-yellow-100 text-yellow-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   // -------- Render ----------
   return (
     <div className="space-y-6">
       {/* CEO Agent Overview Card */}
-      <Card className="border-2 border-primary/20">
+      <Card className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-6 w-6 text-primary" />
-            CEO Agent Control Center
-            {isLoading ? (
-              <Badge variant="secondary">Loading...</Badge>
-            ) : stackStatus?.ceo ? (
-              <Badge variant="default" className="bg-green-500">Active</Badge>
-            ) : (
-              <Badge variant="destructive">Inactive</Badge>
-            )}
+          <CardTitle className="flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Brain className="h-6 w-6 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold">CEO Agent Control Center</span>
+                {isLoading ? (
+                  <Badge variant="secondary" className="animate-pulse">
+                    <Activity className="h-3 w-3 mr-1" />
+                    Loading...
+                  </Badge>
+                ) : stackStatus?.ceo ? (
+                  <Badge variant="default" className="bg-green-500 hover:bg-green-600">
+                    <Zap className="h-3 w-3 mr-1" />
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="destructive">
+                    <Activity className="h-3 w-3 mr-1" />
+                    Inactive
+                  </Badge>
+                )}
+              </div>
+            </div>
           </CardTitle>
-          <CardDescription>
-            Comprehensive management interface for the AI-powered CEO Agent and all network containers.
+          <CardDescription className="text-base">
+            AI-powered governance and proposal management system for the Afro Network ecosystem.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-3">
             <Button
-              variant="outline"
+              size="lg"
               onClick={() => operate("start")}
               disabled={loadingOp === "start" || isPending || stackStatus?.ceo}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
             >
               <Zap className="h-4 w-4" />
-              Start CEO
+              {loadingOp === "start" ? "Starting..." : "Start CEO Agent"}
             </Button>
             <Button
+              size="lg"
               variant="outline"
               onClick={() => operate("stop")}
               disabled={loadingOp === "stop" || isPending || !stackStatus?.ceo}
               className="flex items-center gap-2"
             >
-              <Terminal className="h-4 w-4" />
-              Stop CEO
+              <Activity className="h-4 w-4" />
+              {loadingOp === "stop" ? "Stopping..." : "Stop Agent"}
             </Button>
             <Button
+              size="lg"
               variant="secondary"
               onClick={() => operate("restart")}
               disabled={loadingOp === "restart" || isPending || !stackStatus?.ceo}
               className="flex items-center gap-2"
             >
-              <Settings className="h-4 w-4" />
-              Restart CEO
+              <Activity className="h-4 w-4" />
+              {loadingOp === "restart" ? "Restarting..." : "Restart Agent"}
             </Button>
             <Button
+              size="lg"
               variant="ghost"
               onClick={() => refetch()}
               disabled={isLoading}
@@ -428,186 +378,119 @@ export default function CeoAgentManager() {
         </CardContent>
       </Card>
 
-      {/* Tabbed Interface */}
-      <Tabs defaultValue="containers" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="containers" className="flex items-center gap-2">
-            <Container className="h-4 w-4" />
-            Container Management
-          </TabsTrigger>
-          <TabsTrigger value="ai-proposals" className="flex items-center gap-2">
+      {/* Streamlined Tabbed Interface */}
+      <Tabs defaultValue="ai-proposals" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 h-12">
+          <TabsTrigger value="ai-proposals" className="flex items-center gap-2 text-sm">
             <Brain className="h-4 w-4" />
-            AI Proposals
+            AI Governance
           </TabsTrigger>
-          <TabsTrigger value="dao-proposals" className="flex items-center gap-2">
+          <TabsTrigger value="dao-proposals" className="flex items-center gap-2 text-sm">
             <List className="h-4 w-4" />
-            DAO Governance
+            Community Proposals
           </TabsTrigger>
-          <TabsTrigger value="system-overview" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            System Overview
+          <TabsTrigger value="system-info" className="flex items-center gap-2 text-sm">
+            <Info className="h-4 w-4" />
+            System Info
           </TabsTrigger>
         </TabsList>
 
-        {/* Container Management Tab */}
-        <TabsContent value="containers" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Container className="h-5 w-5" />
-                Container Fleet Management
-              </CardTitle>
-              <CardDescription>
-                Monitor and control all Afro Network containers from this centralized interface.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {containers.map((container) => {
-                  const IconComponent = getContainerIcon(container.name);
-                  return (
-                    <Card key={container.name} className="border-2">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <IconComponent className="h-4 w-4" />
-                            <span className="font-medium text-sm">{container.name}</span>
-                          </div>
-                          <Badge className={getStatusColor(container.status)}>
-                            {container.status}
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-xs">
-                            <Cpu className="h-3 w-3" />
-                            <span>CPU: {container.cpu}%</span>
-                            <div className="flex-1 bg-gray-200 rounded-full h-1">
-                              <div 
-                                className="bg-blue-500 h-1 rounded-full" 
-                                style={{ width: `${container.cpu}%` }}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <MemoryStick className="h-3 w-3" />
-                            <span>RAM: {container.memory}MB</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-xs">
-                            <Activity className="h-3 w-3" />
-                            <span>Uptime: {container.uptime}</span>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {container.ports.map(port => (
-                            <Badge key={port} variant="outline" className="text-xs">
-                              :{port}
-                            </Badge>
-                          ))}
-                        </div>
-                        <div className="flex gap-1">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1 text-xs"
-                            onClick={() => operateContainer({ container: container.name, operation: 'restart' })}
-                          >
-                            Restart
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            className="flex-1 text-xs"
-                            onClick={() => operateContainer({ container: container.name, operation: container.status === 'running' ? 'stop' : 'start' })}
-                          >
-                            {container.status === 'running' ? 'Stop' : 'Start'}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* AI Proposals Tab */}
-        <TabsContent value="ai-proposals" className="space-y-4">
-          <Card>
+        {/* AI Proposals Tab - Enhanced */}
+        <TabsContent value="ai-proposals" className="space-y-6">
+          <Card className="border-2 border-purple-200">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-purple-500" />
-                    AI-Generated Proposals
-                    <Badge variant="secondary" className="text-xs">
+                  <CardTitle className="flex items-center gap-3 text-xl">
+                    <Brain className="h-6 w-6 text-purple-600" />
+                    AI-Powered Governance
+                    <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
                       <Sparkles size={12} className="mr-1" />
                       Powered by Ollama
                     </Badge>
                   </CardTitle>
-                  <CardDescription>
-                    AI-powered governance proposals generated automatically based on network analysis.
+                  <CardDescription className="text-base mt-2">
+                    Advanced AI system that analyzes network performance and generates intelligent governance proposals.
                   </CardDescription>
                 </div>
                 <Button
-                  variant="outline"
+                  size="lg"
                   disabled={generationProgress.isGenerating || generateProposal.isPending}
                   onClick={() => generateProposal.mutate()}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
                 >
-                  <Zap size={16} />
-                  {generationProgress.isGenerating ? "Generating..." : "Generate New Proposal"}
+                  <Zap size={18} />
+                  {generationProgress.isGenerating ? "Generating..." : "Generate Proposal"}
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              {/* Progress tracking */}
+            <CardContent className="space-y-6">
+              {/* Enhanced Progress tracking */}
               {generationProgress.isGenerating && (
-                <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Brain className="text-purple-500 animate-pulse" size={18} />
-                    <span className="font-medium">Creating AI Proposal</span>
-                  </div>
-                  <Progress value={generationProgress.progress} className="mb-2" />
-                  <div className="text-sm text-muted-foreground">{generationProgress.step}</div>
-                </div>
+                <Card className="border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Brain className="text-purple-600 animate-pulse" size={24} />
+                      <div>
+                        <h3 className="font-semibold text-lg">AI Analysis in Progress</h3>
+                        <p className="text-sm text-muted-foreground">Creating intelligent governance proposal</p>
+                      </div>
+                    </div>
+                    <Progress value={generationProgress.progress} className="mb-3 h-3" />
+                    <div className="text-sm font-medium text-purple-700">{generationProgress.step}</div>
+                  </CardContent>
+                </Card>
               )}
 
-              <div className="space-y-3">
+              <div className="grid gap-4">
                 {agenticHook.isLoading ? (
-                  <div className="text-center text-muted-foreground py-8">Loading AI recommendations...</div>
+                  <Card className="border-dashed border-2 border-purple-200">
+                    <CardContent className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <Brain className="h-12 w-12 text-purple-400 mx-auto mb-4 animate-pulse" />
+                        <div className="text-lg font-medium text-muted-foreground">Loading AI recommendations...</div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ) : agenticHook.agentic.length === 0 && !generationProgress.isGenerating ? (
-                  <div className="text-center text-muted-foreground py-8">
-                    No AI recommendations yet. Generate your first proposal above.
-                  </div>
+                  <Card className="border-dashed border-2 border-purple-200">
+                    <CardContent className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <Sparkles className="h-12 w-12 text-purple-400 mx-auto mb-4" />
+                        <div className="text-lg font-medium text-muted-foreground mb-2">No AI proposals yet</div>
+                        <p className="text-sm text-muted-foreground">Generate your first intelligent proposal using the button above</p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ) : (
                   agenticHook.agentic.map((draft) => (
-                    <Card key={draft.id} className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg flex items-center gap-2">
-                            {draft.title}
-                            <Badge variant="outline" className="text-xs capitalize">
-                              {draft.category}
-                            </Badge>
-                          </CardTitle>
+                    <Card key={draft.id} className="border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-blue-50 hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg flex items-center gap-2 mb-2">
+                              <Brain className="h-5 w-5 text-purple-600" />
+                              {draft.title}
+                              <Badge variant="outline" className="text-xs capitalize bg-white">
+                                {draft.category}
+                              </Badge>
+                            </CardTitle>
+                            <CardDescription className="text-sm">
+                              AI Generated: {(new Date(draft.generatedAt)).toLocaleString()}
+                            </CardDescription>
+                          </div>
                           <Button
-                            size="sm"
                             disabled={publishingId === draft.id}
                             onClick={() => handlePublish(draft.id)}
-                            className="bg-purple-600 hover:bg-purple-700"
+                            className="bg-purple-600 hover:bg-purple-700 flex items-center gap-2"
                           >
+                            <Zap className="h-4 w-4" />
                             {publishingId === draft.id ? "Publishing..." : "Publish to DAO"}
                           </Button>
                         </div>
-                        <CardDescription className="text-xs">
-                          Generated: {(new Date(draft.generatedAt)).toLocaleString()}
-                        </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground">{draft.description}</p>
+                        <p className="text-sm leading-relaxed">{draft.description}</p>
                       </CardContent>
                     </Card>
                   ))
@@ -617,57 +500,65 @@ export default function CeoAgentManager() {
           </Card>
         </TabsContent>
 
-        {/* DAO Proposals Tab */}
-        <TabsContent value="dao-proposals" className="space-y-4">
-          <Card>
+        {/* Enhanced DAO Proposals Tab */}
+        <TabsContent value="dao-proposals" className="space-y-6">
+          <Card className="border-2 border-blue-200">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <List className="h-5 w-5 text-primary" />
-                    DAO Governance Proposals
+                  <CardTitle className="flex items-center gap-3 text-xl">
+                    <List className="h-6 w-6 text-blue-600" />
+                    Community Governance
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base mt-2">
                     Community-driven proposals for network governance and improvements.
                   </CardDescription>
                 </div>
                 <Button 
-                  variant="outline"
+                  size="lg"
                   onClick={() => {
                     setShowProposalForm(true);
                     setEditingProposal(null);
                   }}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
                 >
-                  <Plus size={16} />
+                  <Plus size={18} />
                   New Proposal
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
-              {/* ... keep existing code (proposal form and list) */}
+            <CardContent className="space-y-6">
+              {/* Enhanced proposal form */}
               {showProposalForm && (
-                <div className="mb-6 border p-4 rounded-lg bg-background">
-                  <h3 className="font-semibold mb-3">
-                    {editingProposal ? "Edit Proposal" : "Create New Proposal"}
-                  </h3>
-                  <div className="space-y-3">
-                    <input
-                      className="w-full border rounded p-3"
-                      value={proposalTitle}
-                      onChange={e => setProposalTitle(e.target.value)}
-                      placeholder="Proposal title"
-                      maxLength={80}
-                    />
-                    <textarea
-                      className="w-full border rounded p-3"
-                      value={proposalDesc}
-                      onChange={e => setProposalDesc(e.target.value)}
-                      placeholder="Describe your proposal in detail"
-                      rows={4}
-                      maxLength={2000}
-                    />
-                    <div className="flex gap-2">
+                <Card className="border-2 border-blue-200 bg-blue-50">
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      {editingProposal ? "Edit Proposal" : "Create New Community Proposal"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Proposal Title</label>
+                      <input
+                        className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value={proposalTitle}
+                        onChange={e => setProposalTitle(e.target.value)}
+                        placeholder="Enter a clear, descriptive title"
+                        maxLength={80}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Description</label>
+                      <textarea
+                        className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        value={proposalDesc}
+                        onChange={e => setProposalDesc(e.target.value)}
+                        placeholder="Provide a detailed description of your proposal, including rationale and expected impact"
+                        rows={6}
+                        maxLength={2000}
+                      />
+                    </div>
+                    <div className="flex gap-3">
                       <Button
                         disabled={!proposalTitle || !proposalDesc || createProposal.isPending || editProposal.isPending}
                         onClick={() => {
@@ -676,7 +567,10 @@ export default function CeoAgentManager() {
                           } else {
                             createProposal.mutate({ title: proposalTitle, description: proposalDesc });
                           }
-                        }}>
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Zap className="h-4 w-4" />
                         {editingProposal ? "Save Changes" : "Submit Proposal"}
                       </Button>
                       <Button
@@ -691,21 +585,47 @@ export default function CeoAgentManager() {
                         Cancel
                       </Button>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {loadingProposals ? (
-                  <div className="text-center text-muted-foreground py-8">Loading proposals...</div>
+                  <Card className="border-dashed border-2 border-blue-200">
+                    <CardContent className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <List className="h-12 w-12 text-blue-400 mx-auto mb-4 animate-pulse" />
+                        <div className="text-lg font-medium text-muted-foreground">Loading proposals...</div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ) : proposals?.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">No proposals yet. Create the first one!</div>
+                  <Card className="border-dashed border-2 border-blue-200">
+                    <CardContent className="flex items-center justify-center py-12">
+                      <div className="text-center">
+                        <Plus className="h-12 w-12 text-blue-400 mx-auto mb-4" />
+                        <div className="text-lg font-medium text-muted-foreground mb-2">No community proposals yet</div>
+                        <p className="text-sm text-muted-foreground">Be the first to create a proposal for the community</p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ) : (
                   proposals?.map((prop) => (
-                    <Card key={prop.id} className="border-2">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{prop.title}</CardTitle>
+                    <Card key={prop.id} className="border-2 border-blue-200 hover:shadow-lg transition-shadow">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="text-lg mb-2">{prop.title}</CardTitle>
+                            <div className="flex gap-3 items-center text-sm">
+                              <span className="text-muted-foreground">Created by:</span>
+                              <Badge variant={prop.createdBy === nodeId ? "default" : "outline"} className="font-medium">
+                                {prop.createdBy === nodeId ? "You" : `${prop.createdBy.slice(0, 8)}...`}
+                              </Badge>
+                              <span className="text-muted-foreground">
+                                on {(new Date(prop.createdAt)).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
                           {prop.createdBy === nodeId && (
                             <Button 
                               size="sm" 
@@ -716,25 +636,16 @@ export default function CeoAgentManager() {
                                 setProposalDesc(prop.description);
                                 setShowProposalForm(true);
                               }}
-                              className="flex items-center gap-1"
+                              className="flex items-center gap-2"
                             >
                               <Edit size={14} />
                               Edit
                             </Button>
                           )}
                         </div>
-                        <div className="flex gap-2 items-center text-sm">
-                          <span>By:</span>
-                          <Badge variant={prop.createdBy === nodeId ? "default" : "outline"}>
-                            {prop.createdBy === nodeId ? "You" : prop.createdBy.slice(0, 8) + "..."}
-                          </Badge>
-                          <span className="text-muted-foreground ml-2">
-                            {(new Date(prop.createdAt)).toLocaleDateString()}
-                          </span>
-                        </div>
                       </CardHeader>
                       <CardContent>
-                        <p className="text-sm text-muted-foreground">{prop.description}</p>
+                        <p className="text-sm leading-relaxed text-muted-foreground">{prop.description}</p>
                       </CardContent>
                     </Card>
                   ))
@@ -744,88 +655,108 @@ export default function CeoAgentManager() {
           </Card>
         </TabsContent>
 
-        {/* System Overview Tab */}
-        <TabsContent value="system-overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Server className="h-4 w-4 text-blue-500" />
-                  Validators
+        {/* Enhanced System Info Tab */}
+        <TabsContent value="system-info" className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="border-2 border-green-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Brain className="h-5 w-5 text-green-600" />
+                  CEO Agent Status
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-blue-600">2</div>
-                <p className="text-xs text-muted-foreground">Active validator nodes</p>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <span className="font-medium">Agent Status</span>
+                  {stackStatus?.ceo ? (
+                    <Badge className="bg-green-500 hover:bg-green-600">
+                      <Activity className="h-3 w-3 mr-1" />
+                      Active & Running
+                    </Badge>
+                  ) : (
+                    <Badge variant="destructive">
+                      <Activity className="h-3 w-3 mr-1" />
+                      Inactive
+                    </Badge>
+                  )}
+                </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span>AI Model:</span>
+                    <span className="font-medium">Ollama Integration</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Proposal Generation:</span>
+                    <span className="font-medium text-green-600">Available</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Network Analysis:</span>
+                    <span className="font-medium text-green-600">Active</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Eye className="h-4 w-4 text-green-500" />
-                  Explorers
+
+            <Card className="border-2 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Activity className="h-5 w-5 text-blue-600" />
+                  Governance Overview
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">2</div>
-                <p className="text-xs text-muted-foreground">Block explorers running</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Database className="h-4 w-4 text-purple-500" />
-                  Databases
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-purple-600">2</div>
-                <p className="text-xs text-muted-foreground">PostgreSQL instances</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Brain className="h-4 w-4 text-orange-500" />
-                  AI Services
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-orange-600">1</div>
-                <p className="text-xs text-muted-foreground">CEO Agent active</p>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">{agenticHook.agentic.length}</div>
+                    <div className="text-xs text-muted-foreground">AI Proposals</div>
+                  </div>
+                  <div className="text-center p-3 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">{proposals?.length || 0}</div>
+                    <div className="text-xs text-muted-foreground">Community Proposals</div>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Your Node ID:</span>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded">{nodeId.slice(0, 12)}...</code>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Governance Role:</span>
+                    <span className="font-medium">Validator Node</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          <Card>
+          {/* Additional system info */}
+          <Card className="border-2 border-gray-200">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <HardDrive className="h-5 w-5" />
-                Resource Usage Summary
+                <Info className="h-5 w-5 text-gray-600" />
+                System Information
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Total CPU Usage</span>
-                    <span>28%</span>
+              <div className="grid md:grid-cols-2 gap-6 text-sm">
+                <div className="space-y-2">
+                  <h4 className="font-medium text-base mb-3">Network Services</h4>
+                  <div className="space-y-1">
+                    <p>• Container Management: Available via Stack Manager</p>
+                    <p>• AI Governance: Powered by Ollama AI Model</p>
+                    <p>• Proposal System: Community & AI-driven</p>
+                    <p>• Network Monitoring: Real-time status tracking</p>
                   </div>
-                  <Progress value={28} className="h-2" />
                 </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Total Memory Usage</span>
-                    <span>1.8GB / 8GB</span>
+                <div className="space-y-2">
+                  <h4 className="font-medium text-base mb-3">Integration Status</h4>
+                  <div className="space-y-1">
+                    <p>• CEO Agent: {stackStatus?.ceo ? 'Connected' : 'Disconnected'}</p>
+                    <p>• Blockchain Network: {stackStatus?.mainnet ? 'Active' : 'Inactive'}</p>
+                    <p>• Explorer Services: {stackStatus?.explorer ? 'Running' : 'Stopped'}</p>
+                    <p>• Website Portal: {stackStatus?.website ? 'Online' : 'Offline'}</p>
                   </div>
-                  <Progress value={22} className="h-2" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Network I/O</span>
-                    <span>Active</span>
-                  </div>
-                  <Progress value={45} className="h-2" />
                 </div>
               </div>
             </CardContent>
@@ -833,15 +764,19 @@ export default function CeoAgentManager() {
         </TabsContent>
       </Tabs>
 
-      {/* Quick Actions Footer */}
-      <Card className="bg-muted/30">
+      {/* Footer Note */}
+      <Card className="bg-muted/30 border-dashed">
         <CardContent className="pt-6">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Terminal size={16} />
-            <span>
-              For detailed container logs and system diagnostics, visit the <strong>Logs</strong> tab. 
-              Select <strong>CEO Service</strong> (<code>afro-ceo</code>) to view AI agent activity.
-            </span>
+          <div className="flex items-start gap-3 text-sm text-muted-foreground">
+            <Info size={16} className="mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="mb-1">
+                <strong>Note:</strong> Container management functions have been moved to the Stack Manager tab for better organization.
+              </p>
+              <p>
+                For detailed container logs and system diagnostics, visit the <strong>Logs</strong> tab and select <strong>CEO Service</strong> (<code>afro-ceo</code>).
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
