@@ -1,27 +1,200 @@
 
 #!/bin/bash
 
-# Load modular scripts
-source /validator/scripts/rewards.sh
-source /validator/scripts/utils.sh
-source /validator/scripts/address_generation.sh
-source /validator/scripts/sms.sh
-source /validator/scripts/blocks.sh
-source /validator/scripts/validator_registration.sh
+# ---------------------------------------------------------------- #
+#                  INLINED VALIDATOR FUNCTIONS                     #
+# ---------------------------------------------------------------- #
 
-# Mobile Money SMS Integration Configuration
+# --- Inlined from validator/scripts/rewards.sh ---
+AFRO_ADDRESS_REWARD="10000000000000000000"  # 10 AFRO (18 decimals)
+
+# Award validator for successful address generation (called after block/network confirmation)
+award_validator_reward() {
+    local validator_addr=$1
+    local reward_amount=$2
+    local msisdn=$3
+
+    echo "Distributing validator reward: ${reward_amount} AFRO to ${validator_addr} for address generation: ${msisdn}"
+    local reward_tx=$(geth attach --exec "
+        eth.sendTransaction({
+            from: eth.coinbase,
+            to: '${validator_addr}',
+            value: '${reward_amount}',
+            gas: 21000,
+            gasPrice: eth.gasPrice
+        })
+    " 2>/dev/null || echo "reward_pending")
+
+    echo "Validator reward transaction: ${reward_tx}"
+    echo "$(date): Validator ${validator_addr} earned ${reward_amount} AFRO for address generation (MSISDN: ${msisdn})" >> /root/.ethereum/validator_rewards.log
+    return 0
+}
+
+# --- Inlined from validator/scripts/utils.sh ---
+validate_transaction_fee() {
+    local msisdn=$1
+    local required_fee="1000000000000000"  # 0.001 ETH minimum transaction fee (in wei)
+    echo "Validating transaction fee from MSISDN: ${msisdn}"
+    local tx_hash=$(geth attach --exec "eth.pendingTransactions.find(tx => tx.from.toLowerCase().includes('${msisdn}'.toLowerCase()))" 2>/dev/null)
+    if [ -z "$tx_hash" ]; then
+        echo "No pending transaction found from ${msisdn}. Address generation requires payment of 0.001 ETH"
+        return 1
+    fi
+    local tx_value=$(geth attach --exec "eth.getTransaction('${tx_hash}').value" 2>/dev/null)
+    if [ -z "$tx_value" ] || [ "$tx_value" -lt "$required_fee" ]; then
+        echo "Transaction fee insufficient. Required: 0.001 ETH, Received: ${tx_value} wei"
+        return 1
+    fi
+    echo "Transaction fee validated: ${tx_value} wei from ${msisdn}"
+    echo "Transaction hash: ${tx_hash}"
+    return 0
+}
+
+# --- Inlined from validator/scripts/sms.sh ---
+send_sms_validation() {
+    local phone_number=$1
+    local validation_code=$2
+    local otp=$(echo -n "$validation_code" | sha256sum | cut -c1-6)
+    echo "Sending SMS validation to: ${phone_number}"
+    echo "OTP: ${otp}"
+    curl -X POST "$AFRO_SMS_API_URL" \
+        -H "Content-Type: application/json" \
+        -d "{
+            \"to\": \"${phone_number}\",
+            \"message\": \"Your Afro address validation code: ${otp}. Extra chars: ${validation_code}\",
+            \"type\": \"address_validation\"
+        }" \
+        --timeout "$AFRO_SMS_TIMEOUT" || echo "SMS sending failed (API not available)"
+}
+
+# --- Inlined from validator/scripts/blocks.sh ---
+NEW_ADDRESSES_PENDING=()
+
+add_address_to_pending_block() {
+    local new_address=$1
+    local msisdn=$2
+    local timestamp=$(date +%s)
+    echo "Adding address to pending block: ${new_address}"
+    local current_block=$(geth attach --exec "eth.blockNumber" 2>/dev/null || echo "0")
+    local address_entry="${new_address}|${msisdn}|${timestamp}|${current_block}|${AFRO_VALIDATOR_ADDRESS}"
+    NEW_ADDRESSES_PENDING+=("$address_entry")
+    echo "$address_entry" >> /root/.ethereum/pending_addresses.txt
+}
+
+confirm_block_inclusion_by_network() {
+    local block_number=$1
+    local confirmations_needed=3
+    local confirmed=0
+    echo "Waiting for network confirmation of block ${block_number} (need $confirmations_needed nodes)..."
+    while [ $confirmed -lt $confirmations_needed ]; do
+        sleep 1
+        confirmed=$((confirmed + 1))
+        echo "Node ${confirmed} confirmed inclusion of block ${block_number}"
+    done
+    echo "Block ${block_number} confirmed by ${confirmations_needed} nodes with the longest chains."
+    return 0
+}
+
+include_addresses_in_block() {
+    local block_number=$1
+    if [ ${#NEW_ADDRESSES_PENDING[@]} -eq 0 ]; then
+        echo "No pending addresses to include in block ${block_number}"
+        return 0
+    fi
+    echo "Including ${#NEW_ADDRESSES_PENDING[@]} new addresses in block ${block_number}"
+    local addresses_data=""
+    for addr_entry in "${NEW_ADDRESSES_PENDING[@]}"; do
+        addresses_data="${addresses_data}${addr_entry};"
+    done
+    echo "Block ${block_number} addresses: ${addresses_data}" >> /root/.ethereum/block_addresses.log
+    confirm_block_inclusion_by_network "$block_number"
+    for addr_entry in "${NEW_ADDRESSES_PENDING[@]}"; do
+        IFS='|' read -r afro_addr msisdn ts blk val_addr <<< "$addr_entry"
+        award_validator_reward "$val_addr" "$AFRO_ADDRESS_REWARD" "$msisdn"
+    done
+    NEW_ADDRESSES_PENDING=()
+    > /root/.ethereum/pending_addresses.txt
+    echo "Addresses successfully included and validator rewards distributed for block ${block_number}."
+}
+
+# --- Inlined from validator/scripts/address_generation.sh ---
+generate_afro_address() {
+    local msisdn=$1
+    local prefix="afro:${msisdn}:"
+    local max_attempts=1000000
+    local attempt=0
+    echo "Generating address for MSISDN: ${msisdn}"
+
+    if [ "$AFRO_NETWORK_TYPE" = "mainnet" ]; then
+        if ! validate_transaction_fee "$msisdn"; then
+            echo "Address generation failed: Transaction fee validation required (0.001 ETH minimum)"
+            return 1
+        fi
+    fi
+
+    while [ $attempt -lt $max_attempts ]; do
+        local extra_chars=$(openssl rand -hex 16)
+        local candidate_address="${prefix}${extra_chars}"
+        local eth_address="0x${extra_chars}"
+        if geth account validate-address "$eth_address" 2>/dev/null; then
+            echo "Valid address generated: ${candidate_address}"
+            add_address_to_pending_block "$candidate_address" "$msisdn"
+            send_sms_validation "$msisdn" "$extra_chars"
+            echo "$candidate_address"
+            return 0
+        fi
+        attempt=$((attempt + 1))
+    done
+    echo "Failed to generate valid address after ${max_attempts} attempts"
+    return 1
+}
+
+# --- Inlined from validator/scripts/validator_registration.sh ---
+register_validator_phone() {
+    local validator_phone="254700000001"
+    echo "Registering validator phone: ${validator_phone}"
+    echo "${validator_phone}" > /root/.ethereum/validator_phone.txt
+    echo "${AFRO_VALIDATOR_ADDRESS}" > /root/.ethereum/validator_address.txt
+    echo "Broadcasting validator info to peer network..."
+}
+
+
+# ---------------------------------------------------------------- #
+#                     UNIFIED CONFIGURATION                        #
+# ---------------------------------------------------------------- #
+
+if [ "$NETWORK_MODE" = "testnet" ]; then
+    # Testnet Configuration
+    export AFRO_NETWORK_TYPE="testnet"
+    export AFRO_BOOTSTRAP_DOMAIN="afro-testnet.bitsoko.org"
+    export AFRO_BOOTSTRAP_PORT=30304
+    NETWORK_ID=7879
+    RPC_PORT=8547
+    WS_PORT=8548
+    P2P_PORT=30304
+    export AFRO_VALIDATOR_ADDRESS="0xbCD4042DE499D14e55001CcbB24a551F3b954096" # Testnet validator address
+    echo "🚀 Starting Afro Validator in TESTNET mode"
+else
+    # Mainnet Configuration (default)
+    export AFRO_NETWORK_TYPE="mainnet"
+    export AFRO_BOOTSTRAP_DOMAIN="afro-mainnet.bitsoko.org"
+    export AFRO_BOOTSTRAP_PORT=30303
+    NETWORK_ID=7878
+    RPC_PORT=8545
+    WS_PORT=8546
+    P2P_PORT=30303
+    export AFRO_VALIDATOR_ADDRESS="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266" # Mainnet validator address
+    echo "🚀 Starting Afro Validator in MAINNET mode"
+fi
+
+# Shared Configuration
 export AFRO_MOBILE_MONEY_ENABLED=true
 export AFRO_SMS_VALIDATION=true
 export AFRO_ADDRESS_PREFIX="afro:"
 export AFRO_SMS_API_URL="http://localhost:3001/sms"
 export AFRO_SMS_TIMEOUT=30
-export AFRO_NETWORK_TYPE="mainnet"
 
-# P2P Bootstrap Configuration
-export AFRO_BOOTSTRAP_DOMAIN="afro-mainnet.bitsoko.org"
-export AFRO_BOOTSTRAP_PORT=30303
-
-# Initialize address tracking and reward files
+# Initialize files and folders
 mkdir -p /root/.ethereum
 touch /root/.ethereum/pending_addresses.txt
 touch /root/.ethereum/block_addresses.log
@@ -29,32 +202,16 @@ touch /root/.ethereum/block_rewards.log
 touch /root/.ethereum/validator_rewards.log
 
 # Create account if it doesn't exist
-if [ ! -f /root/.ethereum/keystore/* ]; then
-    echo "Creating validator account with mobile money support..."
-    geth account new --password /dev/null
+if [ ! -d /root/.ethereum/keystore ] || [ -z "$(ls -A /root/.ethereum/keystore)" ]; then
+    echo "Creating new account..."
+    geth account new --datadir /root/.ethereum --password /dev/null
 fi
 
-# Register this validator's phone number and address
 register_validator_phone
 
-echo "Starting Afro validator with enhanced mobile money integration and rewards..."
-echo "Address Format: afro:[MSISDN]:[extra_characters]"
-echo "SMS Validation: ${AFRO_SMS_VALIDATION}"
-echo "Transaction Fee Validation: ${AFRO_NETWORK_TYPE}"
-echo "Address Generation Reward: 10 AFRO per valid address"
+echo "Starting Afro validator..."
+echo "Network Type: ${AFRO_NETWORK_TYPE}"
 echo "Validator Address: ${AFRO_VALIDATOR_ADDRESS}"
-echo "Block Address Tracking: Enabled"
-echo "Bootstrap Domain: ${AFRO_BOOTSTRAP_DOMAIN}:${AFRO_BOOTSTRAP_PORT}"
-
-# Example address generation for testing
-echo "Testing address generation with rewards..."
-test_msisdn="254700000000"
-if test_address=$(generate_afro_address "$test_msisdn"); then
-    echo "Test address generated successfully: $test_address"
-    echo "Validator reward system operational (waiting for block/network confirmation for payout)"
-else
-    echo "Test address generation failed"
-fi
 
 # Block mining hook to include addresses with rewards
 on_new_block() {
@@ -63,28 +220,28 @@ on_new_block() {
     include_addresses_in_block "$block_number"
 }
 
-# Start geth with P2P networking and bootstrap configuration
+# Start geth
 exec geth \
-    --networkid 7878 \
+    --networkid ${NETWORK_ID} \
     --datadir /root/.ethereum \
     --http \
     --http.addr 0.0.0.0 \
-    --http.port 8545 \
+    --http.port ${RPC_PORT} \
     --http.corsdomain "*" \
     --http.api "eth,net,web3,personal,admin,miner,afro" \
     --ws \
     --ws.addr 0.0.0.0 \
-    --ws.port 8546 \
+    --ws.port ${WS_PORT} \
     --ws.origins "*" \
     --ws.api "eth,net,web3,personal,admin,miner,afro" \
-    --port 30303 \
-    --bootnodes "enode://afro-mainnet.bitsoko.org:30303" \
+    --port ${P2P_PORT} \
+    --bootnodes "enode://$(geth --exec "admin.nodeInfo.id" --datadir /root/.ethereum/.tmp attach)@127.0.0.1:${P2P_PORT}" \
     --syncmode "full" \
     --maxpeers 25 \
     --mine \
     --miner.threads 1 \
-    --miner.etherbase 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
-    --unlock 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+    --miner.etherbase ${AFRO_VALIDATOR_ADDRESS} \
+    --unlock ${AFRO_VALIDATOR_ADDRESS} \
     --password /dev/null \
     --allow-insecure-unlock \
     --verbosity 3

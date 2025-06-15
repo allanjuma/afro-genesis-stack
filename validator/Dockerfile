@@ -1,6 +1,9 @@
 
 FROM ethereum/client-go:latest
 
+# Set network mode for mainnet
+ENV NETWORK_MODE=mainnet
+
 # Copy genesis configuration
 COPY genesis.json /root/genesis.json
 
