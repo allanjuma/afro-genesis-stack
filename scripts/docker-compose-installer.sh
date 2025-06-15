@@ -6,6 +6,7 @@
 
 set -e
 
+# Consistent version across the entire app
 DOCKER_COMPOSE_VERSION="2.24.1"
 INSTALL_DIR="/usr/local/bin"
 
@@ -43,17 +44,47 @@ check_docker() {
     log_success "Docker is installed: $(docker --version)"
 }
 
-# Check if Docker Compose is installed
+# Function to safely test Docker Compose
+safe_test_docker_compose() {
+    local binary_path="$1"
+    
+    if [ ! -f "$binary_path" ]; then
+        return 1
+    fi
+    
+    # Use timeout to prevent hanging and capture segfaults
+    if timeout 10 "$binary_path" --version >/dev/null 2>&1; then
+        return 0
+    else
+        log_warning "Docker Compose binary at $binary_path failed test (possible segmentation fault)"
+        return 1
+    fi
+}
+
+# Check if Docker Compose is installed and working
 check_docker_compose() {
     # Check for docker-compose (v1) or docker compose (v2)
     if command -v docker-compose &> /dev/null; then
-        log_success "Docker Compose v1 found: $(docker-compose --version)"
-        return 0
-    elif docker compose version &> /dev/null; then
-        log_success "Docker Compose v2 found: $(docker compose version)"
+        if safe_test_docker_compose "$(command -v docker-compose)"; then
+            local version=$(docker-compose --version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+            log_success "Docker Compose v1 found and working: v$version"
+            
+            # Check if version matches our target
+            if [ "$version" != "$DOCKER_COMPOSE_VERSION" ]; then
+                log_warning "Version mismatch. Expected: v$DOCKER_COMPOSE_VERSION, Found: v$version"
+                return 1
+            fi
+            return 0
+        else
+            log_warning "Docker Compose v1 found but not working properly"
+            return 1
+        fi
+    elif docker compose version &> /dev/null 2>&1; then
+        local version=$(docker compose version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
+        log_success "Docker Compose v2 found and working: v$version"
         return 0
     else
-        log_warning "Docker Compose not found. Installing..."
+        log_warning "Docker Compose not found. Installing v$DOCKER_COMPOSE_VERSION..."
         return 1
     fi
 }
@@ -83,28 +114,52 @@ install_docker_compose() {
     # Detect OS
     OS=$(uname -s | tr '[:upper:]' '[:lower:]')
     
+    # Remove any existing broken installation
+    sudo rm -f "${INSTALL_DIR}/docker-compose" 2>/dev/null || true
+    
     # Download Docker Compose
     DOWNLOAD_URL="https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-${OS}-${ARCH}"
     
     log_info "Downloading from: $DOWNLOAD_URL"
     
-    if command -v curl &> /dev/null; then
-        sudo curl -L "$DOWNLOAD_URL" -o "${INSTALL_DIR}/docker-compose"
-    elif command -v wget &> /dev/null; then
-        sudo wget "$DOWNLOAD_URL" -O "${INSTALL_DIR}/docker-compose"
-    else
-        log_error "Neither curl nor wget found. Please install one of them."
+    # Download with retry mechanism
+    local max_retries=3
+    local retry=0
+    
+    while [ $retry -lt $max_retries ]; do
+        if command -v curl &> /dev/null; then
+            if sudo curl -L --fail --retry 3 "$DOWNLOAD_URL" -o "${INSTALL_DIR}/docker-compose"; then
+                break
+            fi
+        elif command -v wget &> /dev/null; then
+            if sudo wget --tries=3 "$DOWNLOAD_URL" -O "${INSTALL_DIR}/docker-compose"; then
+                break
+            fi
+        else
+            log_error "Neither curl nor wget found. Please install one of them."
+            exit 1
+        fi
+        
+        retry=$((retry + 1))
+        log_warning "Download failed, retry $retry/$max_retries"
+        sleep 2
+    done
+    
+    if [ $retry -eq $max_retries ]; then
+        log_error "Failed to download Docker Compose after $max_retries attempts"
+        log_info "You can try running: bash scripts/docker-cleanup.sh --compose-only"
         exit 1
     fi
     
     # Make executable
     sudo chmod +x "${INSTALL_DIR}/docker-compose"
     
-    # Verify installation
-    if command -v docker-compose &> /dev/null; then
+    # Verify installation with safe test
+    if safe_test_docker_compose "${INSTALL_DIR}/docker-compose"; then
         log_success "Docker Compose installed successfully: $(docker-compose --version)"
     else
-        log_error "Docker Compose installation failed"
+        log_error "Docker Compose installation failed verification"
+        log_info "Try running: bash scripts/docker-cleanup.sh --compose-only"
         exit 1
     fi
 }
@@ -150,7 +205,7 @@ setup_docker_permissions() {
 
 # Main installation function
 main() {
-    log_info "🐋 Docker Compose Auto-Installer"
+    log_info "🐋 Docker Compose Auto-Installer (v${DOCKER_COMPOSE_VERSION})"
     echo
     
     # Check Docker
@@ -172,16 +227,24 @@ main() {
     
     echo
     log_success "🎉 Docker Compose setup completed!"
-    log_info "You can now use 'docker-compose' command"
+    log_info "Using consistent version: v${DOCKER_COMPOSE_VERSION}"
     
     # Test Docker Compose
     echo
     log_info "Testing Docker Compose..."
-    docker-compose --version
+    if safe_test_docker_compose "$(command -v docker-compose)"; then
+        docker-compose --version
+    else
+        log_error "Docker Compose test failed after installation"
+        log_info "Try running: bash scripts/docker-cleanup.sh --compose-only"
+        exit 1
+    fi
     
     echo
     log_success "✨ Ready to deploy Afro Network Stack!"
 }
 
-# Run main function
-main "$@"
+# Run main function if script is executed directly
+if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
+    main "$@"
+fi

@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Afro Network Docker Stack Setup Script
@@ -26,6 +27,7 @@ VALIDATOR_ONLY=false
 CEO_ONLY=false
 WEB_ONLY=false
 REINIT=false
+CLEAN_DOCKER=false
 
 show_help() {
     echo "Afro Network Docker Stack Setup Script"
@@ -42,6 +44,7 @@ show_help() {
     echo "  --skip-docker-check Skip Docker installation checks"
     echo "  --production        Setup for production environment"
     echo "  --reinit            Force reinitialization of blockchain data"
+    echo "  --clean-docker      Clean broken Docker installation before setup"
     echo "  --help              Show this help message"
     echo ""
     echo "Examples:"
@@ -52,6 +55,7 @@ show_help() {
     echo "  $0 --appimage-only   Build AppImage package only"
     echo "  $0 --production      Production deployment"
     echo "  $0 --reinit          Restart with fresh blockchain data"
+    echo "  $0 --clean-docker    Clean Docker before setup"
     echo ""
     exit 0
 }
@@ -84,6 +88,11 @@ for arg in "$@"; do
             echo "⚠️  Reinitialization mode: --reinit flag detected and running"
             shift
             ;;
+        --clean-docker)
+            CLEAN_DOCKER=true
+            echo "🧹 Docker cleanup mode: --clean-docker flag detected"
+            shift
+            ;;
         --help)
             show_help
             ;;
@@ -92,6 +101,18 @@ for arg in "$@"; do
             ;;
     esac
 done
+
+# Handle Docker cleanup mode
+if [ "$CLEAN_DOCKER" = true ]; then
+    echo "🧹 Running Docker cleanup before setup..."
+    if [ -f "${SCRIPT_DIR}/scripts/docker-cleanup.sh" ]; then
+        bash "${SCRIPT_DIR}/scripts/docker-cleanup.sh"
+    else
+        echo "❌ Docker cleanup script not found"
+        exit 1
+    fi
+    echo "✅ Docker cleanup completed, continuing with setup..."
+fi
 
 # Handle AppImage-only mode
 if [ "$APPIMAGE_ONLY" = true ]; then
@@ -174,6 +195,17 @@ if [ "$CEO_ONLY" = true ]; then
     fi
     exit 0
 fi
+
+# Add error handling for Docker Compose failures
+handle_docker_error() {
+    echo "❌ Docker operation failed. This might be due to a broken Docker Compose installation."
+    echo "🧹 You can try running: $0 --clean-docker"
+    echo "Or run the cleanup script directly: bash scripts/docker-cleanup.sh"
+    exit 1
+}
+
+# Set up error trap for Docker operations
+trap 'handle_docker_error' ERR
 
 # Legacy manual setup mode
 echo "⚠️  No auto-setup script found. Using legacy manual setup mode."

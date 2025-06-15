@@ -43,6 +43,7 @@ VALIDATOR_ONLY=false
 CEO_ONLY=false
 WEB_ONLY=false
 REINIT=false
+CLEAN_DOCKER=false
 
 for arg in "$@"; do
     case $arg in
@@ -75,6 +76,10 @@ for arg in "$@"; do
             echo -e "\033[1;33m⚠️  Reinitialization mode: --reinit flag detected and running (auto-setup.sh)\033[0m"
             shift
             ;;
+        --clean-docker)
+            CLEAN_DOCKER=true
+            shift
+            ;;
         --help)
             echo "Afro Network Auto-Setup Script"
             echo ""
@@ -88,6 +93,7 @@ for arg in "$@"; do
             echo "  --ceo-only          Run only the CEO management agent"
             echo "  --web-only          Run only the web frontend"
             echo "  --reinit            Force reinitialization of blockchain data"
+            echo "  --clean-docker      Clean broken Docker installation first"
             echo "  --help              Show this help message"
             echo ""
             exit 0
@@ -97,6 +103,15 @@ for arg in "$@"; do
             ;;
     esac
 done
+
+# Error handling for Docker operations
+handle_docker_error() {
+    log_error "Docker operation failed. This might be due to a broken Docker Compose installation."
+    log_info "💡 Suggestions:"
+    log_info "   1. Run: bash scripts/docker-cleanup.sh --compose-only"
+    log_info "   2. Or restart with: $0 --clean-docker $*"
+    exit 1
+}
 
 # System checks function
 perform_system_checks() {
@@ -160,6 +175,19 @@ setup_docker_environment() {
     if [ "$SKIP_DOCKER_CHECK" = false ]; then
         log_info "🐋 Setting up Docker environment..."
         
+        # Run Docker cleanup if requested
+        if [ "$CLEAN_DOCKER" = true ]; then
+            log_info "🧹 Running Docker cleanup first..."
+            if [ -f "${SCRIPT_DIR}/docker-cleanup.sh" ]; then
+                bash "${SCRIPT_DIR}/docker-cleanup.sh" --compose-only
+            else
+                log_warning "Docker cleanup script not found, continuing..."
+            fi
+        fi
+        
+        # Set up error handling for this section
+        trap 'handle_docker_error' ERR
+        
         # Check Docker requirements
         check_docker_requirements
         
@@ -167,6 +195,9 @@ setup_docker_environment() {
         if [ "$FORCE_REINSTALL" = true ] || ! check_docker_compose; then
             install_docker_compose
         fi
+        
+        # Remove error trap
+        trap - ERR
         
         log_success "Docker environment ready"
     else
@@ -231,6 +262,9 @@ setup_environment_config() {
 
 # Deploy the stack
 deploy_afro_stack() {
+    # Set up error handling for Docker operations
+    trap 'handle_docker_error' ERR
+    
     # Handle reinitialization
     if [ "$REINIT" = true ]; then
         echo -e "\033[1;33m🔄 Reinitializing blockchain data (auto-setup.sh detected --reinit flag)...\033[0m"
@@ -281,6 +315,8 @@ deploy_afro_stack() {
         docker-compose up -d afro-web
 
         log_info "🌐 Web Landing/Docs deployed at: http://localhost"
+        # Remove error trap for web-only since we're returning early
+        trap - ERR
         return
     else
         log_info "🚀 Deploying Afro Network Stack..."
@@ -293,6 +329,9 @@ deploy_afro_stack() {
         log_info "Starting services..."
         docker-compose up -d
     fi
+    
+    # Remove error trap after successful deployment
+    trap - ERR
     
     # Wait for services to be ready
     log_info "Waiting for services to start..."
@@ -391,7 +430,7 @@ main_setup() {
     fi
     echo
     
-    # Set up error handling
+    # Set up general error handling
     trap cleanup_on_failure ERR
     
     # Run setup steps
