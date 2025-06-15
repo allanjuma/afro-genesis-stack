@@ -5,13 +5,13 @@ FROM ethereum/client-go:latest
 ENV NETWORK_MODE=mainnet
 
 # Copy genesis configuration
-COPY genesis.json /root/genesis.json
+COPY validator/genesis.json /root/genesis.json
 
 # Initialize the blockchain with genesis
 RUN geth init /root/genesis.json
 
 # Create entrypoint script
-COPY entrypoint.sh /entrypoint.sh
+COPY validator/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 EXPOSE 30303 8545 8546

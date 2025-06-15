@@ -5,7 +5,7 @@ FROM ethereum/client-go:latest
 ENV NETWORK_MODE=testnet
 
 # Copy genesis configuration
-COPY genesis-testnet.json /root/genesis.json
+COPY validator-testnet/genesis-testnet.json /root/genesis.json
 
 # Initialize the blockchain with genesis
 RUN geth init /root/genesis.json

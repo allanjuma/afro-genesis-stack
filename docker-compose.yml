@@ -4,7 +4,9 @@ version: '3.8'
 services:
   # Mainnet Services
   afro-validator:
-    build: ./validator
+    build:
+      context: .
+      dockerfile: validator/Dockerfile
     container_name: afro-validator
     ports:
       - "30303:30303"
@@ -73,7 +75,9 @@ services:
 
   # Testnet Services
   afro-testnet-validator:
-    build: ./validator-testnet
+    build:
+      context: .
+      dockerfile: validator-testnet/Dockerfile
     container_name: afro-testnet-validator
     ports:
       - "30304:30304"
