@@ -40,6 +40,7 @@ log_error() {
 FORCE_REINSTALL=false
 SKIP_DOCKER_CHECK=false
 PRODUCTION_MODE=false
+VALIDATOR_ONLY=false
 
 for arg in "$@"; do
     case $arg in
@@ -55,6 +56,10 @@ for arg in "$@"; do
             PRODUCTION_MODE=true
             shift
             ;;
+        --validator-only)
+            VALIDATOR_ONLY=true
+            shift
+            ;;
         --help)
             echo "Afro Network Auto-Setup Script"
             echo ""
@@ -64,6 +69,7 @@ for arg in "$@"; do
             echo "  --force-reinstall    Force reinstall Docker Compose even if present"
             echo "  --skip-docker-check  Skip Docker installation checks"
             echo "  --production         Setup for production environment"
+            echo "  --validator-only     Run only validator nodes (mainnet and testnet)"
             echo "  --help              Show this help message"
             echo ""
             exit 0
@@ -146,23 +152,49 @@ setup_environment_config() {
             echo "PRODUCTION_MODE=true" >> .env
         fi
     fi
+    
+    # Set validator-only mode
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        log_info "Configuring for validator-only mode..."
+        
+        if [ -f .env ]; then
+            echo "VALIDATOR_ONLY=true" >> .env
+        fi
+    fi
 }
 
 # Deploy the stack
 deploy_afro_stack() {
-    log_info "🚀 Deploying Afro Network Stack..."
-    
-    # Pull latest images
-    log_info "Pulling Docker images..."
-    docker-compose pull
-    
-    # Build custom images
-    log_info "Building custom images..."
-    docker-compose build
-    
-    # Start the stack
-    log_info "Starting services..."
-    docker-compose up -d
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        log_info "🏗️ Deploying Afro Validator Nodes Only..."
+        
+        # Pull validator images only
+        log_info "Pulling validator Docker images..."
+        docker-compose pull afro-validator afro-testnet-validator
+        
+        # Build validator images
+        log_info "Building validator images..."
+        docker-compose build afro-validator afro-testnet-validator
+        
+        # Start validators only
+        log_info "Starting validator services..."
+        docker-compose up -d afro-validator afro-testnet-validator
+        
+    else
+        log_info "🚀 Deploying Afro Network Stack..."
+        
+        # Pull latest images
+        log_info "Pulling Docker images..."
+        docker-compose pull
+        
+        # Build custom images
+        log_info "Building custom images..."
+        docker-compose build
+        
+        # Start the stack
+        log_info "Starting services..."
+        docker-compose up -d
+    fi
     
     # Wait for services to be ready
     log_info "Waiting for services to start..."
@@ -178,36 +210,60 @@ verify_deployment() {
     
     # Display service URLs
     echo
-    log_success "🎉 Afro Network Stack deployed successfully!"
+    log_success "🎉 Afro Network deployed successfully!"
     echo
-    log_info "Service URLs:"
-    echo "  🌐 Website: http://localhost"
-    echo "  🔍 Mainnet Explorer: http://localhost:4000"
-    echo "  🔍 Testnet Explorer: http://localhost:4001"
-    echo "  🤖 CEO Agent: http://localhost:3000"
-    echo "  ⚡ Mainnet RPC: http://localhost:8545"
-    echo "  ⚡ Testnet RPC: http://localhost:8547"
+    
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        log_info "Validator Node URLs:"
+        echo "  ⚡ Mainnet RPC: http://localhost:8545"
+        echo "  ⚡ Testnet RPC: http://localhost:8547"
+        echo "  🔗 Mainnet WebSocket: ws://localhost:8546"
+        echo "  🔗 Testnet WebSocket: ws://localhost:8548"
+    else
+        log_info "Service URLs:"
+        echo "  🌐 Website: http://localhost"
+        echo "  🔍 Mainnet Explorer: http://localhost:4000"
+        echo "  🔍 Testnet Explorer: http://localhost:4001"
+        echo "  🤖 CEO Agent: http://localhost:3000"
+        echo "  ⚡ Mainnet RPC: http://localhost:8545"
+        echo "  ⚡ Testnet RPC: http://localhost:8547"
+    fi
     echo
     
     # Display management commands
     log_info "Management commands:"
-    echo "  📊 Check status: docker-compose ps"
-    echo "  📋 View logs: docker-compose logs -f"
-    echo "  🛑 Stop stack: docker-compose down"
-    echo "  🔄 Restart: docker-compose restart"
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        echo "  📊 Check validators: docker-compose ps afro-validator afro-testnet-validator"
+        echo "  📋 View logs: docker-compose logs -f afro-validator afro-testnet-validator"
+        echo "  🛑 Stop validators: docker-compose stop afro-validator afro-testnet-validator"
+        echo "  🔄 Restart: docker-compose restart afro-validator afro-testnet-validator"
+    else
+        echo "  📊 Check status: docker-compose ps"
+        echo "  📋 View logs: docker-compose logs -f"
+        echo "  🛑 Stop stack: docker-compose down"
+        echo "  🔄 Restart: docker-compose restart"
+    fi
     echo
 }
 
 # Cleanup function for failed deployments
 cleanup_on_failure() {
     log_error "Setup failed. Cleaning up..."
-    docker-compose down --remove-orphans || true
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        docker-compose down afro-validator afro-testnet-validator --remove-orphans || true
+    else
+        docker-compose down --remove-orphans || true
+    fi
     log_info "Cleanup completed"
 }
 
 # Main setup function
 main_setup() {
-    log_info "🚀 Starting Afro Network Automatic Setup"
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        log_info "🏗️ Starting Afro Network Validator-Only Setup"
+    else
+        log_info "🚀 Starting Afro Network Automatic Setup"
+    fi
     echo
     
     # Set up error handling

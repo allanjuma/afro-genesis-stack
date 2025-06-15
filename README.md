@@ -1,3 +1,4 @@
+
 # Afro Network - Complete Blockchain Stack
 
 A complete, production-ready Docker stack for the Afro blockchain network featuring:
@@ -11,13 +12,59 @@ A complete, production-ready Docker stack for the Afro blockchain network featur
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Docker & Docker Compose installed
+- Docker & Docker Compose installed (auto-installed if missing)
 - At least 4GB RAM available
 - Ports 80, 4000, 8545, 8546, 30303 available
 
-### One-Line Setup
+### Setup Options
+
+#### Full Stack Setup (Default)
 ```bash
 chmod +x setup.sh && ./setup.sh
+```
+
+#### Validator Nodes Only
+```bash
+./setup.sh --validator-only
+```
+
+#### AppImage Build Only
+```bash
+./setup.sh --appimage-only
+```
+
+#### Production Setup
+```bash
+./setup.sh --production
+```
+
+### Setup Script Flags
+
+The `setup.sh` script supports the following flags:
+
+| Flag | Description | Example |
+|------|-------------|---------|
+| `--appimage-only` | Build only the AppImage package | `./setup.sh --appimage-only` |
+| `--validator-only` | Run only validator nodes (mainnet and testnet) | `./setup.sh --validator-only` |
+| `--manual` | Skip automatic setup, use manual mode | `./setup.sh --manual` |
+| `--force-reinstall` | Force reinstall Docker Compose even if present | `./setup.sh --force-reinstall` |
+| `--skip-docker-check` | Skip Docker installation checks | `./setup.sh --skip-docker-check` |
+| `--production` | Setup for production environment | `./setup.sh --production` |
+| `--help` | Show help message with all options | `./setup.sh --help` |
+
+#### Flag Combinations
+```bash
+# Production validator-only setup
+./setup.sh --validator-only --production
+
+# Force reinstall Docker Compose and run full setup
+./setup.sh --force-reinstall
+
+# Manual production setup
+./setup.sh --manual --production
+
+# Skip Docker checks for validator-only setup
+./setup.sh --validator-only --skip-docker-check
 ```
 
 ### Manual Setup
@@ -32,6 +79,30 @@ docker-compose up -d
 # Check status
 docker-compose ps
 ```
+
+## 🏗️ Deployment Modes
+
+### Full Stack Mode (Default)
+Deploys all services:
+- Mainnet & Testnet validators
+- Block explorers for both networks
+- Web frontend with documentation
+- CEO agent backend
+- Database services
+
+### Validator-Only Mode
+Deploys only the blockchain nodes:
+- Mainnet validator (port 8545/8546)
+- Testnet validator (port 8547/8548)
+- No web interface or explorers
+- Ideal for headless servers or API-only setups
+
+### Production Mode
+Optimized for production deployment:
+- Enhanced security settings
+- Debug logging disabled
+- Performance optimizations
+- Production environment variables
 
 ## 📦 AppImage Build
 
@@ -103,18 +174,31 @@ docker run --rm afro-appimage-builder
 
 ## 🌐 Service URLs
 
+### Full Stack Mode
 | Service | URL | Description |
 |---------|-----|-------------|
 | **Web Frontend** | http://localhost | Landing page & documentation |
-| **Block Explorer** | http://localhost:4000 | Blockchain explorer |
-| **RPC Endpoint** | http://localhost:8545 | JSON-RPC API |
-| **WebSocket** | ws://localhost:8546 | WebSocket API |
+| **Mainnet Explorer** | http://localhost:4000 | Mainnet blockchain explorer |
+| **Testnet Explorer** | http://localhost:4001 | Testnet blockchain explorer |
+| **CEO Agent** | http://localhost:3000 | AI assistant backend |
+| **Mainnet RPC** | http://localhost:8545 | Mainnet JSON-RPC API |
+| **Testnet RPC** | http://localhost:8547 | Testnet JSON-RPC API |
+| **Mainnet WebSocket** | ws://localhost:8546 | Mainnet WebSocket API |
+| **Testnet WebSocket** | ws://localhost:8548 | Testnet WebSocket API |
 | **RPC Proxy** | http://localhost/rpc | CORS-enabled RPC proxy |
+
+### Validator-Only Mode
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Mainnet RPC** | http://localhost:8545 | Mainnet JSON-RPC API |
+| **Testnet RPC** | http://localhost:8547 | Testnet JSON-RPC API |
+| **Mainnet WebSocket** | ws://localhost:8546 | Mainnet WebSocket API |
+| **Testnet WebSocket** | ws://localhost:8548 | Testnet WebSocket API |
 
 ## 🔧 MetaMask Configuration
 
 ### Automatic Setup
-1. Visit http://localhost
+1. Visit http://localhost (full stack mode only)
 2. Click "Add to MetaMask" button
 
 ### Manual Setup
@@ -132,14 +216,26 @@ afro-chain/
 │   ├── Dockerfile
 │   ├── genesis.json    # Custom genesis configuration
 │   └── entrypoint.sh   # Node startup script
+├── validator-testnet/  # Testnet validator node
+│   ├── Dockerfile
+│   ├── genesis-testnet.json
+│   └── entrypoint-testnet.sh
 ├── explorer/           # Blockscout blockchain explorer
 │   ├── Dockerfile
 │   ├── config.exs      # Blockscout configuration
 │   └── entrypoint.sh   # Explorer startup script
+├── explorer-testnet/   # Testnet explorer
+│   ├── Dockerfile
+│   ├── config-testnet.exs
+│   └── entrypoint-testnet.sh
 ├── web/               # NGINX static site
 │   ├── Dockerfile
 │   ├── nginx.conf     # NGINX configuration
 │   └── site/          # Static HTML/CSS/JS files
+├── ceo/              # CEO agent backend
+│   ├── Dockerfile
+│   ├── package.json
+│   └── server.js
 ├── appimage/          # AppImage build system
 │   ├── Dockerfile     # AppImage builder container
 │   └── build-appimage.sh  # Build script
@@ -147,6 +243,8 @@ afro-chain/
 │   ├── appimage-builder.sh    # AppImage build script
 │   ├── env-generator.sh       # Environment configuration
 │   ├── docker-manager.sh      # Docker operations
+│   ├── docker-compose-installer.sh  # Docker Compose installer
+│   ├── auto-setup.sh          # Automatic setup
 │   └── health-checker.sh      # Service monitoring
 ├── docker-compose.yml # Main orchestration file
 ├── setup.sh          # Automated setup script
@@ -191,19 +289,21 @@ afro-chain/
 
 ## 🔧 Management
 
-### View Logs
+### Service Control Commands
+
+#### Full Stack
 ```bash
-# All services
+# View all services status
+docker-compose ps
+
+# View logs for all services
 docker-compose logs -f
 
-# Specific service
+# View specific service logs
 docker-compose logs -f afro-validator
 docker-compose logs -f afro-explorer
 docker-compose logs -f afro-web
-```
 
-### Service Control
-```bash
 # Stop all services
 docker-compose down
 
@@ -217,6 +317,24 @@ docker-compose restart
 docker-compose up -d --build
 ```
 
+#### Validator-Only Mode
+```bash
+# View validator status
+docker-compose ps afro-validator afro-testnet-validator
+
+# View validator logs
+docker-compose logs -f afro-validator afro-testnet-validator
+
+# Stop validators
+docker-compose stop afro-validator afro-testnet-validator
+
+# Restart validators
+docker-compose restart afro-validator afro-testnet-validator
+
+# Start validators only
+docker-compose up -d afro-validator afro-testnet-validator
+```
+
 ### Configuration
 Environment variables can be configured in `.env` file:
 
@@ -228,23 +346,34 @@ COIN=AFRO
 
 # Ports
 VALIDATOR_HTTP_PORT=8545
+VALIDATOR_TESTNET_HTTP_PORT=8547
 EXPLORER_PORT=4000
+EXPLORER_TESTNET_PORT=4001
 WEB_PORT=80
+
+# Mode Configuration
+VALIDATOR_ONLY=false
+PRODUCTION_MODE=false
 ```
 
 ## 🧪 Development
 
 ### Testing the Network
 ```bash
-# Check validator status
+# Check mainnet validator status
 curl -X POST -H "Content-Type: application/json" \
   --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
   http://localhost:8545
 
-# Check explorer API
+# Check testnet validator status
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  http://localhost:8547
+
+# Check explorer API (full stack mode)
 curl http://localhost:4000/api/v1/blocks
 
-# Check web frontend
+# Check web frontend (full stack mode)
 curl http://localhost/health
 ```
 
@@ -297,6 +426,21 @@ docker system df
 - Ensure RPC URL is http://localhost:8545
 - Check that validator is responding
 - Try using the proxy endpoint: http://localhost/rpc
+
+### Validator-Only Mode Issues
+```bash
+# Check validator status
+docker-compose ps afro-validator afro-testnet-validator
+
+# Check validator logs
+docker-compose logs afro-validator
+docker-compose logs afro-testnet-validator
+
+# Test RPC connectivity
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  http://localhost:8545
+```
 
 ### AppImage Build Issues
 ```bash

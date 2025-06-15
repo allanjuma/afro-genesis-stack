@@ -21,6 +21,10 @@
     .run-btn { margin-left: 1em; background: #125; color: #f6f6fc; border: none; border-radius: 4px; padding: 0.3em 1em; cursor: pointer; }
     .run-btn:hover { background: #19193d; }
     .badge { display: inline-block; background: #e1effa; color: #194c63; font-size: 88%; border-radius: 5px; padding: 0 8px; margin-left: 0.5em; }
+    .setup-section { background: #f8f9fa; padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; border-left: 4px solid #0b163c; }
+    .flag-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    .flag-table th, .flag-table td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; }
+    .flag-table th { background: #f5f5f5; font-weight: bold; }
   </style>
   <script>
     // Documentation of available scripts and commands (interactive, but does NOT directly run backend commands)
@@ -69,7 +73,7 @@
       {
         name: "Validator Settings",
         script: "validator_registration.sh",
-        description: "Registers the validator’s phone number and address with the network.",
+        description: "Registers the validator's phone number and address with the network.",
         example: "bash /validator/scripts/validator_registration.sh",
         interactive: [],
         run: () => "bash /validator/scripts/validator_registration.sh",
@@ -118,6 +122,82 @@
     function renderDocs() {
       const container = getEl('docs-root');
       container.innerHTML = '';
+      
+      // Add setup section
+      const setupSection = document.createElement('div');
+      setupSection.className = 'setup-section';
+      setupSection.innerHTML = `
+        <h2>🚀 Setup Modes & Flags</h2>
+        <p>The Afro Network can be deployed in different modes depending on your needs:</p>
+        
+        <h3>Deployment Modes</h3>
+        <ul>
+          <li><strong>Full Stack</strong> (default): Web interface, explorers, validators, and CEO agent</li>
+          <li><strong>Validator-Only</strong>: Just the blockchain nodes for API access</li>
+          <li><strong>AppImage</strong>: Portable Linux application package</li>
+          <li><strong>Production</strong>: Optimized settings for production deployment</li>
+        </ul>
+        
+        <h3>Available Setup Flags</h3>
+        <table class="flag-table">
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Description</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>--validator-only</code></td>
+              <td>Deploy only validator nodes (mainnet + testnet)</td>
+              <td><code>./setup.sh --validator-only</code></td>
+            </tr>
+            <tr>
+              <td><code>--appimage-only</code></td>
+              <td>Build only the AppImage package</td>
+              <td><code>./setup.sh --appimage-only</code></td>
+            </tr>
+            <tr>
+              <td><code>--production</code></td>
+              <td>Setup for production environment</td>
+              <td><code>./setup.sh --production</code></td>
+            </tr>
+            <tr>
+              <td><code>--force-reinstall</code></td>
+              <td>Force reinstall Docker Compose</td>
+              <td><code>./setup.sh --force-reinstall</code></td>
+            </tr>
+            <tr>
+              <td><code>--skip-docker-check</code></td>
+              <td>Skip Docker installation checks</td>
+              <td><code>./setup.sh --skip-docker-check</code></td>
+            </tr>
+            <tr>
+              <td><code>--manual</code></td>
+              <td>Use manual setup mode</td>
+              <td><code>./setup.sh --manual</code></td>
+            </tr>
+            <tr>
+              <td><code>--help</code></td>
+              <td>Show help message with all options</td>
+              <td><code>./setup.sh --help</code></td>
+            </tr>
+          </tbody>
+        </table>
+        
+        <h3>Common Use Cases</h3>
+        <ul>
+          <li><strong>Development</strong>: <code>./setup.sh</code> (full stack)</li>
+          <li><strong>API Server</strong>: <code>./setup.sh --validator-only</code></li>
+          <li><strong>Production Server</strong>: <code>./setup.sh --production</code></li>
+          <li><strong>Headless Validator</strong>: <code>./setup.sh --validator-only --production</code></li>
+          <li><strong>Desktop App</strong>: <code>./setup.sh --appimage-only</code></li>
+        </ul>
+      `;
+      container.appendChild(setupSection);
+      
+      // Add backend scripts documentation
       scripts.forEach((script, idx) => {
         const sec = document.createElement('div');
         sec.className = 'script-section';
@@ -194,10 +274,10 @@
   <div class="docs-container">
     <h1>Afro Validator Node Backend Scripts (Interactive Docs)</h1>
     <p>
-      This page documents the core backend scripts run by the validator node, using Bash and <code>geth attach</code> for blockchain functions. All behaviors shown here are for the <b>actual backend</b> as used in a live validator setup.
+      This page documents the setup options and core backend scripts for the Afro Network validator node. All behaviors shown here are for the <b>actual backend</b> as used in a live validator setup.
     </p>
     <div class="edit-tip">
-      <b>Tip:</b> Enter your values in the interactive boxes below and click "Show Bash Command" for the real script call. Explanations below show precisely how your validator backend forms and operates each command.
+      <b>Tip:</b> Enter your values in the interactive boxes below and click "Show Bash Command" for the real script call. The setup section shows all available deployment modes and configuration flags.
     </div>
     <div id="docs-root"></div>
   </div>

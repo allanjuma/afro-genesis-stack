@@ -23,6 +23,30 @@ fi
 # Parse command line arguments
 APPIMAGE_ONLY=false
 AUTO_SETUP=true
+VALIDATOR_ONLY=false
+
+show_help() {
+    echo "Afro Network Docker Stack Setup Script"
+    echo ""
+    echo "Usage: $0 [OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo "  --appimage-only      Build only the AppImage package"
+    echo "  --validator-only     Run only validator nodes (mainnet and testnet)"
+    echo "  --manual            Skip automatic setup, use manual mode"
+    echo "  --force-reinstall   Force reinstall Docker Compose even if present"
+    echo "  --skip-docker-check Skip Docker installation checks"
+    echo "  --production        Setup for production environment"
+    echo "  --help              Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  $0                   Full stack setup with auto-install"
+    echo "  $0 --validator-only  Only validator nodes"
+    echo "  $0 --appimage-only   Build AppImage package only"
+    echo "  $0 --production      Production deployment"
+    echo ""
+    exit 0
+}
 
 for arg in "$@"; do
     case $arg in
@@ -31,9 +55,16 @@ for arg in "$@"; do
             AUTO_SETUP=false
             shift
             ;;
+        --validator-only)
+            VALIDATOR_ONLY=true
+            shift
+            ;;
         --manual)
             AUTO_SETUP=false
             shift
+            ;;
+        --help)
+            show_help
             ;;
         *)
             # Pass unknown options to auto-setup
@@ -48,6 +79,21 @@ if [ "$APPIMAGE_ONLY" = true ]; then
         build_appimage
     else
         echo "❌ AppImage builder not found"
+        exit 1
+    fi
+    exit 0
+fi
+
+# Handle validator-only mode
+if [ "$VALIDATOR_ONLY" = true ]; then
+    echo "🏗️ Setting up Afro Network Validators Only..."
+    
+    # Run automatic setup with validator-only flag
+    if [ "$AUTO_SETUP" = true ] && [ -f "${SCRIPT_DIR}/scripts/auto-setup.sh" ]; then
+        echo "🤖 Running automatic validator-only setup..."
+        main_setup --validator-only "$@"
+    else
+        echo "❌ Validator-only mode requires auto-setup"
         exit 1
     fi
     exit 0
