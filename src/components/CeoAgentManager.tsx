@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Terminal, Info, Settings, List, Plus, Edit, Brain, Sparkles } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Terminal, Info, Settings, List, Plus, Edit, Brain, Sparkles, Zap } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
@@ -79,6 +79,11 @@ export default function CeoAgentManager() {
   const [proposalTitle, setProposalTitle] = useState("");
   const [proposalDesc, setProposalDesc] = useState("");
   const [editingProposal, setEditingProposal] = useState<Proposal | null>(null);
+  const [generationProgress, setGenerationProgress] = useState({
+    isGenerating: false,
+    step: '',
+    progress: 0
+  });
   const nodeId = getNodeId();
   const queryClient = useQueryClient();
 
@@ -200,6 +205,73 @@ export default function CeoAgentManager() {
   // Agentic proposals (AI-generated)
   const agenticHook = useAgenticProposals();
 
+  // Manual AI proposal generation
+  const generateProposal = useMutation({
+    mutationFn: async () => {
+      setGenerationProgress({ isGenerating: true, step: 'Initializing...', progress: 10 });
+      
+      const res = await fetch("/api/ceo/generate-proposal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nodeId })
+      });
+      
+      if (!res.ok) throw new Error("Failed to generate proposal");
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      setGenerationProgress({ isGenerating: false, step: 'Complete!', progress: 100 });
+      toast({
+        title: "AI Proposal Generated",
+        description: data.message || "New proposal created successfully"
+      });
+      agenticHook.fetchAgentic();
+      setTimeout(() => {
+        setGenerationProgress({ isGenerating: false, step: '', progress: 0 });
+      }, 2000);
+    },
+    onError: (error: any) => {
+      setGenerationProgress({ isGenerating: false, step: 'Failed', progress: 0 });
+      toast({
+        title: "Failed to generate proposal",
+        description: error?.message || "Something went wrong",
+        variant: "destructive"
+      });
+      setTimeout(() => {
+        setGenerationProgress({ isGenerating: false, step: '', progress: 0 });
+      }, 2000);
+    }
+  });
+
+  // Track generation progress
+  useEffect(() => {
+    if (generationProgress.isGenerating) {
+      const interval = setInterval(() => {
+        setGenerationProgress(prev => {
+          if (prev.progress < 90) {
+            const newProgress = prev.progress + 10;
+            let step = prev.step;
+            
+            if (newProgress >= 20 && newProgress < 40) {
+              step = 'Analyzing network status...';
+            } else if (newProgress >= 40 && newProgress < 60) {
+              step = 'Querying Ollama AI...';
+            } else if (newProgress >= 60 && newProgress < 80) {
+              step = 'Processing response...';
+            } else if (newProgress >= 80) {
+              step = 'Finalizing proposal...';
+            }
+            
+            return { ...prev, progress: newProgress, step };
+          }
+          return prev;
+        });
+      }, 500);
+
+      return () => clearInterval(interval);
+    }
+  }, [generationProgress.isGenerating]);
+
   // Publish (owner promotes draft to DAO)
   const [publishingId, setPublishingId] = useState<string | null>(null);
   const handlePublish = async (id: string) => {
@@ -232,12 +304,35 @@ export default function CeoAgentManager() {
           <Sparkles size={12} className="mr-1" />
           Powered by Ollama
         </Badge>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={generationProgress.isGenerating || generateProposal.isPending}
+          onClick={() => generateProposal.mutate()}
+          className="ml-auto"
+        >
+          <Zap size={14} className="mr-1" />
+          {generationProgress.isGenerating ? "Generating..." : "Generate Now"}
+        </Button>
       </div>
+
+      {/* Progress tracking */}
+      {generationProgress.isGenerating && (
+        <div className="mb-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+          <div className="flex items-center gap-2 mb-2">
+            <Brain className="text-purple-500 animate-pulse" size={16} />
+            <span className="text-sm font-medium">Creating AI Proposal</span>
+          </div>
+          <Progress value={generationProgress.progress} className="mb-2" />
+          <div className="text-xs text-muted-foreground">{generationProgress.step}</div>
+        </div>
+      )}
+
       {agenticHook.isLoading ? (
         <div className="text-xs text-muted-foreground">Loading AI recommendations...</div>
       ) : (
         <div className="space-y-2">
-          {agenticHook.agentic.length === 0 && (
+          {agenticHook.agentic.length === 0 && !generationProgress.isGenerating && (
             <div className="text-xs text-muted-foreground">No AI recommendations yet. The CEO Agent will generate proposals based on network analysis.</div>
           )}
           {agenticHook.agentic.map((draft) => (

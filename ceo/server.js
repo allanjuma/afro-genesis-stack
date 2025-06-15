@@ -389,6 +389,92 @@ app.post("/api/ceo/agentic-proposals/publish", async (req, res) => {
   }
 });
 
+// API: Manual generation of agentic proposal
+app.post("/api/ceo/generate-proposal", async (req, res) => {
+  try {
+    const { nodeId } = req.body;
+    if (!nodeId) return res.status(400).json({ error: "Missing nodeId" });
+
+    console.log(`Manual proposal generation requested by node: ${nodeId}`);
+
+    // Get current network status for analysis
+    const networkStatus = await getNetworkStatus();
+    const stackStatus = await getStackStatus();
+    
+    // Compose a detailed prompt for Ollama
+    const ollamaPrompt = `
+    Based on this comprehensive Afro Network analysis, suggest ONE highly actionable improvement proposal.
+    Consider technical health, operational efficiency, user experience, or growth opportunities.
+    
+    Format your response EXACTLY as:
+    ---
+    title: [concise descriptive title under 60 characters]
+    category: [technical/marketing/community/governance/security/other]
+    description: [2-4 sentences with clear context, reasoning, and specific actionable steps]
+    ---
+    
+    Current Network Analysis:
+    - Timestamp: ${new Date().toISOString()}
+    - Network Status: ${JSON.stringify(networkStatus)}
+    - Stack Status: ${JSON.stringify(stackStatus)}
+    - Request Source: Manual generation by ${nodeId}
+    
+    Focus on practical improvements that can be implemented to enhance the network.
+    `;
+
+    let aiResponse = "";
+    try {
+      console.log("Querying Ollama for proposal generation...");
+      aiResponse = await queryOllama(ollamaPrompt);
+      console.log("Ollama response received:", aiResponse.substring(0, 100) + "...");
+    } catch (e) {
+      console.error("Ollama query failed:", e.message);
+      throw new Error("AI service temporarily unavailable");
+    }
+
+    // Parse AI response
+    const titleMatch = aiResponse.match(/title:\s*(.+)/i);
+    const catMatch = aiResponse.match(/category:\s*(.+)/i);
+    const descMatch = aiResponse.match(/description:\s*([\s\S]+?)(?=---|$)/i);
+
+    if (!titleMatch || !catMatch || !descMatch) {
+      console.log("Failed to parse AI response:", aiResponse);
+      throw new Error("AI generated invalid proposal format");
+    }
+
+    // Create proposal draft
+    const proposalDraft = {
+      id: Math.random().toString(36).slice(2) + Date.now(),
+      title: titleMatch[1].trim(),
+      category: catMatch[1].trim().toLowerCase(),
+      description: descMatch[1].trim(),
+      generatedAt: new Date().toISOString(),
+      published: false,
+      manual: true // Mark as manually generated
+    };
+
+    // Save to agentic proposals
+    const agenticProposals = await loadAgenticProposals();
+    agenticProposals.push(proposalDraft);
+    await saveAgenticProposals(agenticProposals);
+
+    console.log("Manual proposal created:", proposalDraft.title);
+
+    res.json({
+      success: true,
+      proposal: proposalDraft,
+      message: `AI proposal "${proposalDraft.title}" generated successfully`
+    });
+
+  } catch (error) {
+    console.error("Manual proposal generation error:", error.message);
+    res.status(500).json({
+      error: "Failed to generate proposal",
+      message: error.message
+    });
+  }
+});
+
 // API Routes
 app.get('/health', (req, res) => {
   res.json({ 
