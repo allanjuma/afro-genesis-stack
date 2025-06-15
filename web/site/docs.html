@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,6 +153,11 @@
               <td><code>./setup.sh --validator-only</code></td>
             </tr>
             <tr>
+              <td><code>--ceo-only</code></td>
+              <td>Deploy only the CEO management agent</td>
+              <td><code>./setup.sh --ceo-only</code></td>
+            </tr>
+            <tr>
               <td><code>--appimage-only</code></td>
               <td>Build only the AppImage package</td>
               <td><code>./setup.sh --appimage-only</code></td>
@@ -190,6 +194,7 @@
         <ul>
           <li><strong>Development</strong>: <code>./setup.sh</code> (full stack)</li>
           <li><strong>API Server</strong>: <code>./setup.sh --validator-only</code></li>
+          <li><strong>Management Only</strong>: <code>./setup.sh --ceo-only</code></li>
           <li><strong>Production Server</strong>: <code>./setup.sh --production</code></li>
           <li><strong>Headless Validator</strong>: <code>./setup.sh --validator-only --production</code></li>
           <li><strong>Desktop App</strong>: <code>./setup.sh --appimage-only</code></li>

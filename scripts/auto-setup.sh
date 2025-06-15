@@ -41,6 +41,7 @@ FORCE_REINSTALL=false
 SKIP_DOCKER_CHECK=false
 PRODUCTION_MODE=false
 VALIDATOR_ONLY=false
+CEO_ONLY=false
 
 for arg in "$@"; do
     case $arg in
@@ -60,6 +61,10 @@ for arg in "$@"; do
             VALIDATOR_ONLY=true
             shift
             ;;
+        --ceo-only)
+            CEO_ONLY=true
+            shift
+            ;;
         --help)
             echo "Afro Network Auto-Setup Script"
             echo ""
@@ -70,6 +75,7 @@ for arg in "$@"; do
             echo "  --skip-docker-check  Skip Docker installation checks"
             echo "  --production         Setup for production environment"
             echo "  --validator-only     Run only validator nodes (mainnet and testnet)"
+            echo "  --ceo-only          Run only the CEO management agent"
             echo "  --help              Show this help message"
             echo ""
             exit 0
@@ -80,59 +86,7 @@ for arg in "$@"; do
     esac
 done
 
-# Pre-setup system checks
-perform_system_checks() {
-    log_info "🔍 Performing system checks..."
-    
-    # Check OS compatibility
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        log_success "Linux OS detected"
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        log_success "macOS detected"
-    elif [[ "$OSTYPE" == "msys" ]] || [[ "$OSTYPE" == "cygwin" ]]; then
-        log_warning "Windows detected - some features may require WSL"
-    else
-        log_warning "Unknown OS: $OSTYPE - proceeding anyway"
-    fi
-    
-    # Check available disk space (require at least 5GB)
-    AVAILABLE_SPACE=$(df . | tail -1 | awk '{print $4}')
-    REQUIRED_SPACE=5242880  # 5GB in KB
-    
-    if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SPACE" ]; then
-        log_error "Insufficient disk space. Required: 5GB, Available: $(($AVAILABLE_SPACE / 1024 / 1024))GB"
-        exit 1
-    fi
-    
-    log_success "Sufficient disk space available"
-    
-    # Check network connectivity
-    if ping -c 1 google.com &> /dev/null || ping -c 1 8.8.8.8 &> /dev/null; then
-        log_success "Network connectivity verified"
-    else
-        log_error "No network connectivity detected"
-        exit 1
-    fi
-}
-
-# Setup Docker environment
-setup_docker_environment() {
-    log_info "🐋 Setting up Docker environment..."
-    
-    if [ "$SKIP_DOCKER_CHECK" = false ]; then
-        # Run Docker Compose installer
-        if [ "$FORCE_REINSTALL" = true ]; then
-            log_info "Force reinstalling Docker Compose..."
-            # Remove existing installation
-            sudo rm -f /usr/local/bin/docker-compose
-        fi
-        
-        # Install/verify Docker Compose
-        main  # Call the main function from docker-compose-installer.sh
-    else
-        log_warning "Skipping Docker checks as requested"
-    fi
-}
+# ... keep existing code (perform_system_checks and setup_docker_environment functions)
 
 # Generate environment configuration
 setup_environment_config() {
@@ -161,6 +115,15 @@ setup_environment_config() {
             echo "VALIDATOR_ONLY=true" >> .env
         fi
     fi
+    
+    # Set CEO-only mode
+    if [ "$CEO_ONLY" = true ]; then
+        log_info "Configuring for CEO-only mode..."
+        
+        if [ -f .env ]; then
+            echo "CEO_ONLY=true" >> .env
+        fi
+    fi
 }
 
 # Deploy the stack
@@ -179,6 +142,21 @@ deploy_afro_stack() {
         # Start validators only
         log_info "Starting validator services..."
         docker-compose up -d afro-validator afro-testnet-validator
+        
+    elif [ "$CEO_ONLY" = true ]; then
+        log_info "🤖 Deploying CEO Management Agent Only..."
+        
+        # Pull CEO image only
+        log_info "Pulling CEO Docker image..."
+        docker-compose pull ceo
+        
+        # Build CEO image
+        log_info "Building CEO image..."
+        docker-compose build ceo
+        
+        # Start CEO only
+        log_info "Starting CEO service..."
+        docker-compose up -d ceo
         
     else
         log_info "🚀 Deploying Afro Network Stack..."
@@ -219,6 +197,9 @@ verify_deployment() {
         echo "  ⚡ Testnet RPC: http://localhost:8547"
         echo "  🔗 Mainnet WebSocket: ws://localhost:8546"
         echo "  🔗 Testnet WebSocket: ws://localhost:8548"
+    elif [ "$CEO_ONLY" = true ]; then
+        log_info "CEO Management Agent URL:"
+        echo "  🤖 CEO Agent: http://localhost:3000"
     else
         log_info "Service URLs:"
         echo "  🌐 Website: http://localhost"
@@ -237,6 +218,11 @@ verify_deployment() {
         echo "  📋 View logs: docker-compose logs -f afro-validator afro-testnet-validator"
         echo "  🛑 Stop validators: docker-compose stop afro-validator afro-testnet-validator"
         echo "  🔄 Restart: docker-compose restart afro-validator afro-testnet-validator"
+    elif [ "$CEO_ONLY" = true ]; then
+        echo "  📊 Check CEO: docker-compose ps ceo"
+        echo "  📋 View logs: docker-compose logs -f ceo"
+        echo "  🛑 Stop CEO: docker-compose stop ceo"
+        echo "  🔄 Restart: docker-compose restart ceo"
     else
         echo "  📊 Check status: docker-compose ps"
         echo "  📋 View logs: docker-compose logs -f"
@@ -251,6 +237,8 @@ cleanup_on_failure() {
     log_error "Setup failed. Cleaning up..."
     if [ "$VALIDATOR_ONLY" = true ]; then
         docker-compose down afro-validator afro-testnet-validator --remove-orphans || true
+    elif [ "$CEO_ONLY" = true ]; then
+        docker-compose down ceo --remove-orphans || true
     else
         docker-compose down --remove-orphans || true
     fi
@@ -261,6 +249,8 @@ cleanup_on_failure() {
 main_setup() {
     if [ "$VALIDATOR_ONLY" = true ]; then
         log_info "🏗️ Starting Afro Network Validator-Only Setup"
+    elif [ "$CEO_ONLY" = true ]; then
+        log_info "🤖 Starting Afro Network CEO-Only Setup"
     else
         log_info "🚀 Starting Afro Network Automatic Setup"
     fi

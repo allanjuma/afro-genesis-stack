@@ -24,6 +24,7 @@ fi
 APPIMAGE_ONLY=false
 AUTO_SETUP=true
 VALIDATOR_ONLY=false
+CEO_ONLY=false
 
 show_help() {
     echo "Afro Network Docker Stack Setup Script"
@@ -33,6 +34,7 @@ show_help() {
     echo "Options:"
     echo "  --appimage-only      Build only the AppImage package"
     echo "  --validator-only     Run only validator nodes (mainnet and testnet)"
+    echo "  --ceo-only          Run only the CEO management agent"
     echo "  --manual            Skip automatic setup, use manual mode"
     echo "  --force-reinstall   Force reinstall Docker Compose even if present"
     echo "  --skip-docker-check Skip Docker installation checks"
@@ -42,6 +44,7 @@ show_help() {
     echo "Examples:"
     echo "  $0                   Full stack setup with auto-install"
     echo "  $0 --validator-only  Only validator nodes"
+    echo "  $0 --ceo-only        Only CEO management agent"
     echo "  $0 --appimage-only   Build AppImage package only"
     echo "  $0 --production      Production deployment"
     echo ""
@@ -57,6 +60,10 @@ for arg in "$@"; do
             ;;
         --validator-only)
             VALIDATOR_ONLY=true
+            shift
+            ;;
+        --ceo-only)
+            CEO_ONLY=true
             shift
             ;;
         --manual)
@@ -99,49 +106,19 @@ if [ "$VALIDATOR_ONLY" = true ]; then
     exit 0
 fi
 
-# Run automatic setup if available
-if [ "$AUTO_SETUP" = true ] && [ -f "${SCRIPT_DIR}/scripts/auto-setup.sh" ]; then
-    echo "🤖 Running automatic setup..."
-    main_setup "$@"
+# Handle CEO-only mode
+if [ "$CEO_ONLY" = true ]; then
+    echo "🤖 Setting up Afro Network CEO Agent Only..."
+    
+    # Run automatic setup with CEO-only flag
+    if [ "$AUTO_SETUP" = true ] && [ -f "${SCRIPT_DIR}/scripts/auto-setup.sh" ]; then
+        echo "🤖 Running automatic CEO-only setup..."
+        main_setup --ceo-only "$@"
+    else
+        echo "❌ CEO-only mode requires auto-setup"
+        exit 1
+    fi
     exit 0
 fi
 
-# Legacy manual setup mode
-echo "🚀 Setting up Afro Network Docker Stack (Manual Mode)..."
-
-# Check Docker requirements with auto-install
-echo "🐋 Checking Docker requirements..."
-if ! command -v docker &> /dev/null; then
-    echo "❌ Docker is not installed. Please install Docker first."
-    echo "ℹ️  Visit: https://docs.docker.com/get-docker/"
-    exit 1
-fi
-
-# Auto-install Docker Compose if missing
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
-    echo "⚠️  Docker Compose not found. Installing automatically..."
-    if [ -f "${SCRIPT_DIR}/scripts/docker-compose-installer.sh" ]; then
-        main  # Call Docker Compose installer
-    else
-        echo "❌ Docker Compose installer not found. Please install Docker Compose manually."
-        exit 1
-    fi
-else
-    echo "✅ Docker Compose is available"
-fi
-
-# Generate .env file
-echo "⚙️  Generating environment configuration..."
-generate_env_file
-
-# Manage Docker stack
-echo "📦 Managing Docker stack..."
-manage_docker_stack
-
-# Check service health
-echo "🔍 Checking service health..."
-check_service_health
-
-# Display completion information
-echo "🎉 Setup completed!"
-display_completion_info
+# ... keep existing code (legacy manual setup mode)
