@@ -86,7 +86,79 @@ for arg in "$@"; do
     esac
 done
 
-# ... keep existing code (perform_system_checks and setup_docker_environment functions)
+# System checks function
+perform_system_checks() {
+    log_info "🔍 Performing system checks..."
+    
+    # Check operating system
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        log_success "Linux detected"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        log_success "macOS detected"
+    else
+        log_warning "Unsupported OS: $OSTYPE"
+    fi
+    
+    # Check available disk space (at least 10GB)
+    available_space=$(df . | awk 'NR==2 {print $4}')
+    if [ "$available_space" -gt 10485760 ]; then
+        log_success "Sufficient disk space available"
+    else
+        log_warning "Low disk space detected. At least 10GB recommended."
+    fi
+    
+    # Check if ports are available
+    check_port() {
+        local port=$1
+        local service=$2
+        if netstat -tuln 2>/dev/null | grep -q ":$port "; then
+            log_warning "Port $port is already in use (needed for $service)"
+        else
+            log_success "Port $port is available for $service"
+        fi
+    }
+    
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        check_port 8545 "Mainnet RPC"
+        check_port 8546 "Mainnet WebSocket"
+        check_port 8547 "Testnet RPC"
+        check_port 8548 "Testnet WebSocket"
+        check_port 30303 "Mainnet P2P"
+        check_port 30304 "Testnet P2P"
+    elif [ "$CEO_ONLY" = true ]; then
+        check_port 3000 "CEO Agent"
+    else
+        check_port 80 "Web Frontend"
+        check_port 3000 "CEO Agent"
+        check_port 4000 "Mainnet Explorer"
+        check_port 4001 "Testnet Explorer"
+        check_port 8545 "Mainnet RPC"
+        check_port 8546 "Mainnet WebSocket"
+        check_port 8547 "Testnet RPC"
+        check_port 8548 "Testnet WebSocket"
+        check_port 30303 "Mainnet P2P"
+        check_port 30304 "Testnet P2P"
+    fi
+}
+
+# Docker environment setup
+setup_docker_environment() {
+    if [ "$SKIP_DOCKER_CHECK" = false ]; then
+        log_info "🐋 Setting up Docker environment..."
+        
+        # Check Docker requirements
+        check_docker_requirements
+        
+        # Install Docker Compose if needed or forced
+        if [ "$FORCE_REINSTALL" = true ] || ! check_docker_compose; then
+            install_docker_compose
+        fi
+        
+        log_success "Docker environment ready"
+    else
+        log_info "Skipping Docker checks as requested"
+    fi
+}
 
 # Generate environment configuration
 setup_environment_config() {
@@ -133,7 +205,7 @@ deploy_afro_stack() {
         
         # Pull validator images only
         log_info "Pulling validator Docker images..."
-        docker-compose pull afro-validator afro-testnet-validator
+        docker-compose pull afro-validator afro-testnet-validator || true
         
         # Build validator images
         log_info "Building validator images..."
@@ -148,7 +220,7 @@ deploy_afro_stack() {
         
         # Pull CEO image only
         log_info "Pulling CEO Docker image..."
-        docker-compose pull ceo
+        docker-compose pull ceo || true
         
         # Build CEO image
         log_info "Building CEO image..."
@@ -163,7 +235,7 @@ deploy_afro_stack() {
         
         # Pull latest images
         log_info "Pulling Docker images..."
-        docker-compose pull
+        docker-compose pull || true
         
         # Build custom images
         log_info "Building custom images..."
@@ -236,11 +308,13 @@ verify_deployment() {
 cleanup_on_failure() {
     log_error "Setup failed. Cleaning up..."
     if [ "$VALIDATOR_ONLY" = true ]; then
-        docker-compose down afro-validator afro-testnet-validator --remove-orphans || true
+        docker-compose stop afro-validator afro-testnet-validator 2>/dev/null || true
+        docker-compose rm -f afro-validator afro-testnet-validator 2>/dev/null || true
     elif [ "$CEO_ONLY" = true ]; then
-        docker-compose down ceo --remove-orphans || true
+        docker-compose stop ceo 2>/dev/null || true
+        docker-compose rm -f ceo 2>/dev/null || true
     else
-        docker-compose down --remove-orphans || true
+        docker-compose down --remove-orphans 2>/dev/null || true
     fi
     log_info "Cleanup completed"
 }
