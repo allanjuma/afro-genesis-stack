@@ -4,6 +4,9 @@ FROM ethereum/client-go:latest
 # Set network mode for mainnet
 ENV NETWORK_MODE=mainnet
 
+# Install bash
+RUN apk add --no-cache bash
+
 # Copy genesis configuration
 COPY validator/genesis.json /root/genesis.json
 

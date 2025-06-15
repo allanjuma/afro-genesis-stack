@@ -4,6 +4,9 @@ FROM ethereum/client-go:latest
 # Set network mode for testnet
 ENV NETWORK_MODE=testnet
 
+# Install bash
+RUN apk add --no-cache bash
+
 # Copy genesis configuration
 COPY validator-testnet/genesis-testnet.json /root/genesis.json
 
