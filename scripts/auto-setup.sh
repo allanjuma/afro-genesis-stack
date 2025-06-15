@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 # Afro Network Automatic Setup Script
@@ -207,10 +208,18 @@ setup_docker_environment() {
 
 # Generate environment configuration
 setup_environment_config() {
+    # Skip environment config generation for web-only mode
+    if [ "$WEB_ONLY" = true ]; then
+        log_info "⚙️  Skipping environment configuration for web-only mode..."
+        return
+    fi
+    
     log_info "⚙️  Setting up environment configuration..."
     
     # Call env-generator function
     generate_env_file
+    
+    # ... keep existing code (production mode, validator-only mode, CEO-only mode, reinit mode configurations)
     
     # Set production-specific configurations
     if [ "$PRODUCTION_MODE" = true ]; then
@@ -239,14 +248,6 @@ setup_environment_config() {
         
         if [ -f .env ]; then
             echo "CEO_ONLY=true" >> .env
-        fi
-    fi
-    
-    # Set web-only mode
-    if [ "$WEB_ONLY" = true ]; then
-        log_info "Configuring for web-only mode..."
-        if [ -f .env ]; then
-            echo "WEB_ONLY=true" >> .env
         fi
     fi
     
@@ -304,17 +305,23 @@ deploy_afro_stack() {
         docker-compose up -d ceo
         
     elif [ "$WEB_ONLY" = true ]; then
-        log_info "🌐 Deploying Web Container Only (no blockchain/ceo/validators/etc)..."
+        log_info "🌐 Deploying Web Container Only (static frontend/docs)..."
+
+        # Stop all services first to ensure clean state
+        log_info "🛑 Stopping all services to ensure clean web-only deployment..."
+        docker-compose down 2>/dev/null || true
 
         # Pull just the web image
         log_info "Pulling web Docker image..."
         docker-compose pull afro-web || true
 
-        # Start just the web
-        log_info "Starting web service (static frontend/docs)..."
+        # Start ONLY the web container
+        log_info "Starting web service only (no validators, CEO, databases, or explorers)..."
         docker-compose up -d afro-web
 
-        log_info "🌐 Web Landing/Docs deployed at: http://localhost"
+        log_success "🌐 Web container deployed successfully!"
+        log_info "🌐 Website available at: http://localhost"
+        
         # Remove error trap for web-only since we're returning early
         trap - ERR
         return
@@ -342,7 +349,27 @@ deploy_afro_stack() {
 verify_deployment() {
     log_info "🔍 Verifying deployment..."
     
-    # Check service health
+    # For web-only, just check the web container
+    if [ "$WEB_ONLY" = true ]; then
+        if docker-compose ps afro-web | grep -q "Up"; then
+            log_success "🎉 Web container deployed successfully!"
+            echo
+            log_info "Web Frontend URL:"
+            echo "  🌐 Website: http://localhost"
+            echo
+            log_info "Management commands:"
+            echo "  📊 Check web: docker-compose ps afro-web"
+            echo "  📋 View logs: docker-compose logs -f afro-web"
+            echo "  🛑 Stop web: docker-compose stop afro-web"
+            echo "  🔄 Restart: docker-compose restart afro-web"
+        else
+            log_error "Web container failed to start"
+            echo "📋 Check logs: docker-compose logs afro-web"
+        fi
+        return
+    fi
+    
+    # Check service health for other modes
     check_service_health
     
     # Display service URLs
@@ -359,9 +386,6 @@ verify_deployment() {
     elif [ "$CEO_ONLY" = true ]; then
         log_info "CEO Management Agent URL:"
         echo "  🤖 CEO Agent: http://localhost:3000"
-    elif [ "$WEB_ONLY" = true ]; then
-        log_info "Web Frontend URL:"
-        echo "  🌐 Website: http://localhost"
     else
         log_info "Service URLs:"
         echo "  🌐 Website: http://localhost"
@@ -385,11 +409,6 @@ verify_deployment() {
         echo "  📋 View logs: docker-compose logs -f ceo"
         echo "  🛑 Stop CEO: docker-compose stop ceo"
         echo "  🔄 Restart: docker-compose restart ceo"
-    elif [ "$WEB_ONLY" = true ]; then
-        echo "  📊 Check web: docker-compose ps afro-web"
-        echo "  📋 View logs: docker-compose logs -f afro-web"
-        echo "  🛑 Stop web: docker-compose stop afro-web"
-        echo "  🔄 Restart: docker-compose restart afro-web"
     else
         echo "  📊 Check status: docker-compose ps"
         echo "  📋 View logs: docker-compose logs -f"

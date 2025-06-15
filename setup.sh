@@ -126,14 +126,42 @@ if [ "$APPIMAGE_ONLY" = true ]; then
     exit 0
 fi
 
-# Handle web-only mode
+# Handle web-only mode - simplified to only run web container
 if [ "$WEB_ONLY" = true ]; then
-    echo "🌐 Setting up Web only (Landing/Docs)..."
-    if [ "$AUTO_SETUP" = true ] && [ -f "${SCRIPT_DIR}/scripts/auto-setup.sh" ]; then
-        echo "🤖 Running automatic web-only setup..."
-        main_setup --web-only "$@"
+    echo "🌐 Setting up Web container only (static frontend/docs)..."
+    
+    # Install Docker Compose if needed
+    if ! command -v docker-compose >/dev/null 2>&1; then
+        if [ -f "${SCRIPT_DIR}/scripts/docker-compose-installer.sh" ]; then
+            source "${SCRIPT_DIR}/scripts/docker-compose-installer.sh"
+            install_docker_compose
+        else
+            echo "❌ Docker Compose installer not found"
+            exit 1
+        fi
+    fi
+    
+    # Stop all services first to ensure clean state
+    echo "🛑 Stopping all services to ensure clean web-only deployment..."
+    docker-compose down 2>/dev/null || true
+    
+    # Start only the web container
+    echo "🚀 Starting web container only..."
+    docker-compose up -d afro-web
+    
+    # Verify web container is running
+    echo "🔍 Verifying web container status..."
+    sleep 5
+    if docker-compose ps afro-web | grep -q "Up"; then
+        echo "✅ Web container deployed successfully!"
+        echo "🌐 Website available at: http://localhost"
+        echo ""
+        echo "📊 Check status: docker-compose ps afro-web"
+        echo "📋 View logs: docker-compose logs -f afro-web"
+        echo "🛑 Stop web: docker-compose stop afro-web"
     else
-        echo "❌ Web-only mode requires auto-setup"
+        echo "❌ Web container failed to start"
+        echo "📋 Check logs: docker-compose logs afro-web"
         exit 1
     fi
     exit 0
@@ -196,16 +224,7 @@ if [ "$CEO_ONLY" = true ]; then
     exit 0
 fi
 
-# Add error handling for Docker Compose failures
-handle_docker_error() {
-    echo "❌ Docker operation failed. This might be due to a broken Docker Compose installation."
-    echo "🧹 You can try running: $0 --clean-docker"
-    echo "Or run the cleanup script directly: bash scripts/docker-cleanup.sh"
-    exit 1
-}
-
-# Set up error trap for Docker operations
-trap 'handle_docker_error' ERR
+# ... keep existing code (legacy manual setup mode and error handling functions)
 
 # Legacy manual setup mode
 echo "⚠️  No auto-setup script found. Using legacy manual setup mode."
