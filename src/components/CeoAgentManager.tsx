@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Terminal, Info, Settings, List, Plus, Edit } from "lucide-react";
+import { Terminal, Info, Settings, List, Plus, Edit, Brain, Sparkles } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
@@ -31,6 +32,19 @@ type AgenticProposal = {
   generatedAt: string;
   published: boolean;
 }
+
+// Simple node ID generator for demo purposes
+const getNodeId = () => {
+  if (typeof window !== 'undefined') {
+    let nodeId = localStorage.getItem('nodeId');
+    if (!nodeId) {
+      nodeId = 'node-' + Math.random().toString(36).substr(2, 9);
+      localStorage.setItem('nodeId', nodeId);
+    }
+    return nodeId;
+  }
+  return 'node-' + Math.random().toString(36).substr(2, 9);
+};
 
 const useAgenticProposals = () => {
   const [agentic, setAgentic] = useState<AgenticProposal[]>([]);
@@ -207,6 +221,55 @@ export default function CeoAgentManager() {
       setPublishingId(null);
     }
   };
+
+  // Define the AgenticSection
+  const AgenticSection = (
+    <div>
+      <div className="flex items-center gap-2 mt-4 mb-3">
+        <Brain className="text-purple-500" size={20} />
+        <span className="font-semibold">AI Recommendations</span>
+        <Badge variant="secondary" className="text-xs">
+          <Sparkles size={12} className="mr-1" />
+          Powered by Ollama
+        </Badge>
+      </div>
+      {agenticHook.isLoading ? (
+        <div className="text-xs text-muted-foreground">Loading AI recommendations...</div>
+      ) : (
+        <div className="space-y-2">
+          {agenticHook.agentic.length === 0 && (
+            <div className="text-xs text-muted-foreground">No AI recommendations yet. The CEO Agent will generate proposals based on network analysis.</div>
+          )}
+          {agenticHook.agentic.map((draft) => (
+            <Card key={draft.id} className="border-2 border-purple-200 bg-purple-50/50">
+              <CardHeader className="p-2 pb-0">
+                <CardTitle className="text-base flex items-center gap-2">
+                  {draft.title}
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {draft.category}
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Generated: {(new Date(draft.generatedAt)).toLocaleString()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-2 pt-0">
+                <div className="text-xs text-muted-foreground mb-2">{draft.description}</div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  disabled={publishingId === draft.id}
+                  onClick={() => handlePublish(draft.id)}
+                >
+                  {publishingId === draft.id ? "Publishing..." : "Publish to DAO"}
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 
   // UI for proposal list and creation form
   const ProposalSection = (
