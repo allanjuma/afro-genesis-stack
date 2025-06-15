@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Afro Network Automatic Setup Script
@@ -42,6 +41,7 @@ SKIP_DOCKER_CHECK=false
 PRODUCTION_MODE=false
 VALIDATOR_ONLY=false
 CEO_ONLY=false
+REINIT=false
 
 for arg in "$@"; do
     case $arg in
@@ -65,6 +65,10 @@ for arg in "$@"; do
             CEO_ONLY=true
             shift
             ;;
+        --reinit)
+            REINIT=true
+            shift
+            ;;
         --help)
             echo "Afro Network Auto-Setup Script"
             echo ""
@@ -76,6 +80,7 @@ for arg in "$@"; do
             echo "  --production         Setup for production environment"
             echo "  --validator-only     Run only validator nodes (mainnet and testnet)"
             echo "  --ceo-only          Run only the CEO management agent"
+            echo "  --reinit            Force reinitialization of blockchain data"
             echo "  --help              Show this help message"
             echo ""
             exit 0
@@ -196,20 +201,41 @@ setup_environment_config() {
             echo "CEO_ONLY=true" >> .env
         fi
     fi
+    
+    # Set reinit mode
+    if [ "$REINIT" = true ]; then
+        log_info "Configuring for blockchain reinitialization..."
+        
+        if [ -f .env ]; then
+            echo "REINIT_BLOCKCHAIN=true" >> .env
+        fi
+    fi
 }
 
 # Deploy the stack
 deploy_afro_stack() {
+    # Handle reinitialization
+    if [ "$REINIT" = true ]; then
+        log_info "🔄 Reinitializing blockchain data..."
+        
+        # Stop containers
+        log_info "🛑 Stopping containers..."
+        docker-compose down
+        
+        # Remove validator volumes to force fresh initialization
+        log_info "🗑️  Removing blockchain data volumes..."
+        docker volume rm $(docker-compose config --services | grep -E "(validator|testnet)" | xargs -I {} echo "$(basename $(pwd))_{}_data") 2>/dev/null || log_info "Some volumes not found (normal for first run)"
+        
+        # Start containers with fresh data
+        log_info "🚀 Starting containers with fresh blockchain data..."
+    fi
+    
     if [ "$VALIDATOR_ONLY" = true ]; then
         log_info "🏗️ Deploying Afro Validator Nodes Only..."
         
         # Pull validator images only
         log_info "Pulling validator Docker images..."
         docker-compose pull afro-validator afro-testnet-validator || true
-        
-        # Build validator images
-        log_info "Building validator images..."
-        docker-compose build afro-validator afro-testnet-validator
         
         # Start validators only
         log_info "Starting validator services..."
@@ -222,10 +248,6 @@ deploy_afro_stack() {
         log_info "Pulling CEO Docker image..."
         docker-compose pull ceo || true
         
-        # Build CEO image
-        log_info "Building CEO image..."
-        docker-compose build ceo
-        
         # Start CEO only
         log_info "Starting CEO service..."
         docker-compose up -d ceo
@@ -236,10 +258,6 @@ deploy_afro_stack() {
         # Pull latest images
         log_info "Pulling Docker images..."
         docker-compose pull || true
-        
-        # Build custom images
-        log_info "Building custom images..."
-        docker-compose build
         
         # Start the stack
         log_info "Starting services..."

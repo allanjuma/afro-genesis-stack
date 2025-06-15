@@ -25,6 +25,7 @@ APPIMAGE_ONLY=false
 AUTO_SETUP=true
 VALIDATOR_ONLY=false
 CEO_ONLY=false
+REINIT=false
 
 show_help() {
     echo "Afro Network Docker Stack Setup Script"
@@ -39,6 +40,7 @@ show_help() {
     echo "  --force-reinstall   Force reinstall Docker Compose even if present"
     echo "  --skip-docker-check Skip Docker installation checks"
     echo "  --production        Setup for production environment"
+    echo "  --reinit            Force reinitialization of blockchain data"
     echo "  --help              Show this help message"
     echo ""
     echo "Examples:"
@@ -47,6 +49,7 @@ show_help() {
     echo "  $0 --ceo-only        Only CEO management agent"
     echo "  $0 --appimage-only   Build AppImage package only"
     echo "  $0 --production      Production deployment"
+    echo "  $0 --reinit          Restart with fresh blockchain data"
     echo ""
     exit 0
 }
@@ -70,6 +73,10 @@ for arg in "$@"; do
             AUTO_SETUP=false
             shift
             ;;
+        --reinit)
+            REINIT=true
+            shift
+            ;;
         --help)
             show_help
             ;;
@@ -88,6 +95,33 @@ if [ "$APPIMAGE_ONLY" = true ]; then
         echo "❌ AppImage builder not found"
         exit 1
     fi
+    exit 0
+fi
+
+# Handle reinit mode
+if [ "$REINIT" = true ]; then
+    echo "🔄 Reinitializing blockchain data..."
+    
+    # Stop containers
+    echo "🛑 Stopping containers..."
+    docker-compose down
+    
+    # Remove validator volumes to force fresh initialization
+    echo "🗑️  Removing blockchain data volumes..."
+    docker volume rm afro-blockchain_validator_data 2>/dev/null || echo "Volume validator_data not found"
+    docker volume rm afro-blockchain_testnet_validator_data 2>/dev/null || echo "Volume testnet_validator_data not found"
+    
+    # Restart containers
+    echo "🚀 Starting containers with fresh data..."
+    if [ "$VALIDATOR_ONLY" = true ]; then
+        docker-compose up -d afro-validator afro-testnet-validator
+    elif [ "$CEO_ONLY" = true ]; then
+        docker-compose up -d ceo
+    else
+        docker-compose up -d
+    fi
+    
+    echo "✅ Reinitialization complete! Blockchain data has been reset."
     exit 0
 fi
 
