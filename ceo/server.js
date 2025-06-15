@@ -471,6 +471,85 @@ app.get('/api/conversations', async (req, res) => {
   }
 });
 
+// DAO Proposal Storage & API ---
+// Proposal file location
+const proposalsFile = path.join(dataDir, "proposals.json");
+
+// Helper: Load proposals
+const loadProposals = async () => {
+  try {
+    const data = await fs.readFile(proposalsFile, "utf8");
+    return JSON.parse(data);
+  } catch (e) {
+    return [];
+  }
+};
+// Helper: Save proposals
+const saveProposals = async (proposals) => {
+  await fs.writeFile(proposalsFile, JSON.stringify(proposals, null, 2));
+};
+
+// GET: List proposals
+app.get('/api/ceo/proposals', async (req, res) => {
+  try {
+    const proposals = await loadProposals();
+    res.json(proposals);
+  } catch (error) {
+    console.error("Failed to load proposals:", error.message);
+    res.status(500).json({ error: "Failed to load proposals" });
+  }
+});
+
+// POST: Create new proposal
+app.post('/api/ceo/proposals', async (req, res) => {
+  try {
+    const { title, description, createdBy } = req.body;
+    if (!title || !description || !createdBy) {
+      return res.status(400).json({ message: "Missing title, description, or createdBy" });
+    }
+
+    const proposals = await loadProposals();
+    const id = Math.random().toString(36).slice(2) + Date.now();
+    const proposal = {
+      id,
+      title,
+      description,
+      createdBy,
+      createdAt: new Date().toISOString()
+    };
+    proposals.push(proposal);
+    await saveProposals(proposals);
+
+    res.json({ message: "Proposal created", proposal });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to create proposal" });
+  }
+});
+
+// PUT: Edit proposal (only by owner)
+app.put('/api/ceo/proposals/:id', async (req, res) => {
+  try {
+    const { title, description, nodeId } = req.body;
+    const id = req.params.id;
+    if (!title || !description || !nodeId) {
+      return res.status(400).json({ message: "Missing title, description, or nodeId" });
+    }
+    const proposals = await loadProposals();
+    const idx = proposals.findIndex(p => p.id === id);
+    if (idx === -1) return res.status(404).json({ message: "Proposal not found" });
+    if (proposals[idx].createdBy !== nodeId) {
+      return res.status(403).json({ message: "Permission denied: only the original creator can edit" });
+    }
+    proposals[idx].title = title;
+    proposals[idx].description = description;
+    proposals[idx].updatedAt = new Date().toISOString();
+    await saveProposals(proposals);
+    res.json({ message: "Proposal updated", proposal: proposals[idx] });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to edit proposal" });
+  }
+});
+
 // Scheduled network monitoring
 cron.schedule('*/5 * * * *', async () => {
   try {
