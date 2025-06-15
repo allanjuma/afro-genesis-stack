@@ -65,11 +65,12 @@ safe_test_docker_compose() {
 check_docker_compose_v2() {
     if docker compose version &> /dev/null 2>&1; then
         local version=$(docker compose version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
-        log_success "Docker Compose v2 found through Docker CLI: v$version"
-        return 0
-    else
-        return 1
+        if [ -n "$version" ]; then
+            log_success "Docker Compose v2 found through Docker CLI: v$version"
+            return 0
+        fi
     fi
+    return 1
 }
 
 # Check if Docker Compose is installed and working
@@ -83,22 +84,24 @@ check_docker_compose() {
     if command -v docker-compose &> /dev/null; then
         if safe_test_docker_compose "$(command -v docker-compose)"; then
             local version=$(docker-compose --version 2>/dev/null | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' | head -1)
-            log_success "Docker Compose v1 found and working: v$version"
-            
-            # Check if version matches our target
-            if [ "$version" != "$DOCKER_COMPOSE_VERSION" ]; then
-                log_warning "Version mismatch. Expected: v$DOCKER_COMPOSE_VERSION, Found: v$version"
-                return 1
+            if [ -n "$version" ]; then
+                log_success "Docker Compose v1 found and working: v$version"
+                
+                # Check if version matches our target
+                if [ "$version" != "$DOCKER_COMPOSE_VERSION" ]; then
+                    log_warning "Version mismatch. Expected: v$DOCKER_COMPOSE_VERSION, Found: v$version"
+                    return 1
+                fi
+                return 0
             fi
-            return 0
         else
             log_warning "Docker Compose v1 found but not working properly"
             return 1
         fi
-    else
-        log_info "Docker Compose not found. Will install v$DOCKER_COMPOSE_VERSION..."
-        return 1
     fi
+    
+    log_info "Docker Compose not found. Will install v$DOCKER_COMPOSE_VERSION..."
+    return 1
 }
 
 # Install Docker Compose
@@ -147,11 +150,11 @@ install_docker_compose() {
     
     while [ $retry -lt $max_retries ]; do
         if command -v curl &> /dev/null; then
-            if sudo curl -L --fail --retry 3 "$DOWNLOAD_URL" -o "${INSTALL_DIR}/docker-compose"; then
+            if sudo curl -L --fail --retry 3 --max-time 300 "$DOWNLOAD_URL" -o "${INSTALL_DIR}/docker-compose"; then
                 break
             fi
         elif command -v wget &> /dev/null; then
-            if sudo wget --tries=3 "$DOWNLOAD_URL" -O "${INSTALL_DIR}/docker-compose"; then
+            if sudo wget --timeout=300 --tries=3 "$DOWNLOAD_URL" -O "${INSTALL_DIR}/docker-compose"; then
                 break
             fi
         else
@@ -191,14 +194,13 @@ setup_docker_compose_alias() {
         # Create a wrapper script
         sudo tee "${INSTALL_DIR}/docker-compose" > /dev/null << 'EOF'
 #!/bin/bash
-docker compose "$@"
+# Docker Compose v2 compatibility wrapper
+exec docker compose "$@"
 EOF
         sudo chmod +x "${INSTALL_DIR}/docker-compose"
         log_success "Docker Compose alias created"
     fi
 }
-
-# ... keep existing code (check_docker_daemon, setup_docker_permissions, main functions)
 
 # Verify Docker daemon is running
 check_docker_daemon() {
@@ -222,6 +224,13 @@ setup_docker_permissions() {
     else
         log_success "User has proper Docker permissions"
     fi
+}
+
+# Check Docker requirements wrapper
+check_docker_requirements() {
+    check_docker
+    check_docker_daemon
+    setup_docker_permissions
 }
 
 # Main installation function

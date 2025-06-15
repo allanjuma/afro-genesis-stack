@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 
 export interface StackOperation {
@@ -29,16 +30,42 @@ export interface EndpointConfig {
 
 class StackAPIService {
   private baseUrl = '';
+  private maxRetries = 3;
+  private retryDelay = 1000;
+
+  private async makeRequest(url: string, options: RequestInit, retries = 0): Promise<Response> {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+
+      if (!response.ok && retries < this.maxRetries) {
+        console.warn(`Request failed (${response.status}), retrying... (${retries + 1}/${this.maxRetries})`);
+        await new Promise(resolve => setTimeout(resolve, this.retryDelay * (retries + 1)));
+        return this.makeRequest(url, options, retries + 1);
+      }
+
+      return response;
+    } catch (error) {
+      if (retries < this.maxRetries) {
+        console.warn(`Request error, retrying... (${retries + 1}/${this.maxRetries})`, error);
+        await new Promise(resolve => setTimeout(resolve, this.retryDelay * (retries + 1)));
+        return this.makeRequest(url, options, retries + 1);
+      }
+      throw error;
+    }
+  }
 
   async executeStackOperation(operation: StackOperation): Promise<StackResponse> {
     try {
       console.log(`Executing stack operation: ${operation.operation} with services:`, operation.services);
       
-      const response = await fetch('/api/ceo/stack-operation', {
+      const response = await this.makeRequest('/api/ceo/stack-operation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(operation),
       });
 
@@ -60,12 +87,13 @@ class StackAPIService {
 
       return result;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Stack operation ${operation.operation} failed:`, error);
-      toast.error(`Failed to ${operation.operation} stack: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to ${operation.operation} stack: ${errorMessage}`);
       
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: errorMessage
       };
     }
   }
@@ -74,11 +102,8 @@ class StackAPIService {
     try {
       console.log(`Executing git operation: ${operation.operation}`);
       
-      const response = await fetch('/api/ceo/git-operation', {
+      const response = await this.makeRequest('/api/ceo/git-operation', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(operation),
       });
 
@@ -100,12 +125,13 @@ class StackAPIService {
 
       return result;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`Git operation ${operation.operation} failed:`, error);
-      toast.error(`Failed to ${operation.operation}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toast.error(`Failed to ${operation.operation}: ${errorMessage}`);
       
       return {
         success: false,
-        message: error instanceof Error ? error.message : 'Unknown error'
+        message: errorMessage
       };
     }
   }
@@ -114,7 +140,9 @@ class StackAPIService {
     try {
       console.log('Fetching stack status...');
       
-      const response = await fetch('/api/ceo/stack-status');
+      const response = await this.makeRequest('/api/ceo/stack-status', {
+        method: 'GET',
+      });
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -141,11 +169,8 @@ class StackAPIService {
    */
   async saveEndpointConfig(endpoints: EndpointConfig[]): Promise<{ success: boolean; restarted?: string[]; message?: string }> {
     try {
-      const response = await fetch('/api/ceo/set-endpoints', {
+      const response = await this.makeRequest('/api/ceo/set-endpoints', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ endpoints }),
       });
 
@@ -164,6 +189,21 @@ class StackAPIService {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       toast.error("Saving settings failed: " + msg);
       return { success: false, message: msg };
+    }
+  }
+
+  /**
+   * Health check method to verify API connectivity
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const response = await this.makeRequest('/api/health', {
+        method: 'GET',
+      });
+      return response.ok;
+    } catch (error) {
+      console.warn('Health check failed:', error);
+      return false;
     }
   }
 }
