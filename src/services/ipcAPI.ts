@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 
 export interface IPCResponse {
@@ -330,7 +329,7 @@ class IPCAPIService {
     
     const result = await this.executeDockerCommand(command);
     
-    result.success) {
+    if (result.success) {
       toast.success('Stack restarted successfully');
     } else {
       toast.error(`Failed to restart stack: ${result.message}`);
