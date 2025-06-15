@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,16 +23,41 @@ type Proposal = {
   updatedAt?: string;
 }
 
-function getNodeId() {
-  // Node ID can ultimately be fetched/derived as per node identity (stubbed here)
-  // In practice, this should be a signature/public key (e.g., from wallet)
-  let id = localStorage.getItem("ceo_node_id");
-  if (!id) {
-    id = Math.random().toString(36).slice(2) + Date.now();
-    localStorage.setItem("ceo_node_id", id);
-  }
-  return id;
+type AgenticProposal = {
+  id: string;
+  title: string;
+  category: string;
+  description: string;
+  generatedAt: string;
+  published: boolean;
 }
+
+const useAgenticProposals = () => {
+  const [agentic, setAgentic] = useState<AgenticProposal[]>([]);
+  const [isLoading, setLoading] = useState(true);
+
+  const fetchAgentic = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ceo/agentic-proposals");
+      if (!res.ok) throw new Error("Failed to fetch agentic proposals");
+      setAgentic(await res.json());
+    } catch (e) {
+      console.error(e);
+      setAgentic([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAgentic();
+    const intv = setInterval(fetchAgentic, 15000);
+    return () => clearInterval(intv);
+  }, []);
+
+  return { agentic, isLoading, fetchAgentic };
+};
 
 export default function CeoAgentManager() {
   const [loadingOp, setLoadingOp] = useState<string | null>(null);
@@ -159,6 +183,31 @@ export default function CeoAgentManager() {
     }
   });
 
+  // Agentic proposals (AI-generated)
+  const agenticHook = useAgenticProposals();
+
+  // Publish (owner promotes draft to DAO)
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const handlePublish = async (id: string) => {
+    setPublishingId(id);
+    try {
+      const res = await fetch("/api/ceo/agentic-proposals/publish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, createdBy: nodeId })
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Failed to publish");
+      toast({ title: "Published proposal", description: data.message });
+      agenticHook.fetchAgentic();
+      queryClient.invalidateQueries({ queryKey: ["daoProposals"] });
+    } catch (e: any) {
+      toast({ title: "Failed to publish", description: e.message, variant: "destructive" });
+    } finally {
+      setPublishingId(null);
+    }
+  };
+
   // UI for proposal list and creation form
   const ProposalSection = (
     <div>
@@ -273,7 +322,8 @@ export default function CeoAgentManager() {
           <Settings size={20} /> CEO Agent Manager
         </CardTitle>
         <CardDescription>
-          Manage and monitor the CEO Agent container directly from your dashboard.
+          Manage and monitor the CEO Agent container directly from your dashboard.<br/>
+          <span className="text-primary font-semibold">Now with agentic proposals powered by Ollama AI.</span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -319,6 +369,9 @@ export default function CeoAgentManager() {
               Refresh
             </Button>
           </div>
+
+          {/* --- AGENTIC PROPOSALS --- */}
+          {AgenticSection}
 
           {/* DAO: Proposal section */}
           {ProposalSection}

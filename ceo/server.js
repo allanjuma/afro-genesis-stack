@@ -35,6 +35,7 @@ const octokit = process.env.GITHUB_TOKEN ? new Octokit({
 const dataDir = '/app/data';
 const conversationsFile = path.join(dataDir, 'conversations.json');
 const issuesFile = path.join(dataDir, 'issues.json');
+const agenticProposalsFile = path.join(dataDir, "agentic_proposals.json");
 
 // CEO Agent context
 const getCEOContext = () => {
@@ -264,6 +265,129 @@ const getStackStatus = async () => {
     };
   }
 };
+
+// Helper: Load and Save Agentic Proposals (drafts)
+const loadAgenticProposals = async () => {
+  try {
+    const data = await fs.readFile(agenticProposalsFile, "utf8");
+    return JSON.parse(data);
+  } catch (e) {
+    return [];
+  }
+};
+
+const saveAgenticProposals = async (proposals) => {
+  await fs.writeFile(agenticProposalsFile, JSON.stringify(proposals, null, 2));
+};
+
+// DAEMON: Agentic Network Snapshots/Recommendations (every 10 min)
+cron.schedule("*/10 * * * *", async () => {
+  try {
+    // Only generate if not present for latest interval (avoid spam duplicates)
+    const proposals = await loadAgenticProposals();
+    const now = new Date();
+    const latest = proposals[proposals.length - 1];
+    const intervalMark = now.toISOString().slice(0, 13); // hour marker
+
+    if (latest && latest.generatedAt.slice(0, 13) === intervalMark) return;
+
+    // Compose a system prompt: ask Ollama for recommendations
+    const networkStatus = await getNetworkStatus();
+    const ollamaPrompt = `
+    Based on this Afro Network status (time: ${now.toISOString()}), suggest ONE actionable improvement as a new proposal. 
+    It can be technical, marketing, or community-related. Format as:
+    ---
+    title: [short descriptive title]
+    category: [technical/marketing/community/other]
+    description: [2-4 sentences with context, reasoning, and suggestion]
+    ---
+    Network status:
+    ${JSON.stringify(networkStatus)}
+    `;
+
+    let aiResp = "";
+    try {
+      aiResp = await queryOllama(ollamaPrompt);
+      if (!aiResp) throw new Error('empty');
+    } catch (e) {
+      aiResp = "AI was unable to generate a proposal at this time.";
+    }
+    // Parse AI result (simple YAML-like format for now)
+    const titleMatch = aiResp.match(/title:\s*(.+)/i);
+    const catMatch = aiResp.match(/category:\s*(.+)/i);
+    const descMatch = aiResp.match(/description:\s*([\s\S]+)/i);
+
+    if (titleMatch && catMatch && descMatch) {
+      const proposalDraft = {
+        id: Math.random().toString(36).slice(2) + Date.now(),
+        title: titleMatch[1].trim(),
+        category: catMatch[1].trim().toLowerCase(),
+        description: descMatch[1].trim(),
+        generatedAt: now.toISOString(),
+        published: false,
+      };
+      proposals.push(proposalDraft);
+      await saveAgenticProposals(proposals);
+      console.log("Agentic proposal draft created:", proposalDraft.title);
+    }
+  } catch (err) {
+    console.error("Agentic proposal daemon error:", err.message);
+  }
+});
+
+// API: Get agentic (AI-generated) proposals
+app.get("/api/ceo/agentic-proposals", async (req, res) => {
+  try {
+    const agenticProposals = await loadAgenticProposals();
+    res.json(agenticProposals.filter(p => !p.published));
+  } catch (error) {
+    res.status(500).json({ error: "Failed to get agentic proposals" });
+  }
+});
+
+// API: Publish an agentic proposal to DAO proposals (by owner)
+app.post("/api/ceo/agentic-proposals/publish", async (req, res) => {
+  try {
+    const { id, createdBy } = req.body;
+    if (!id || !createdBy) return res.status(400).json({ error: "Missing id or createdBy" });
+    let agenticProposals = await loadAgenticProposals();
+    const idx = agenticProposals.findIndex(p => p.id === id && !p.published);
+    if (idx === -1) return res.status(404).json({ error: "Proposal draft not found" });
+
+    // Move to DAO proposals.json as a new proposal
+    const loadProposals = async () => {
+      try {
+        const data = await fs.readFile(path.join(dataDir, "proposals.json"), "utf8");
+        return JSON.parse(data);
+      } catch (e) { return []; }
+    };
+    const saveProposals = async (proposals) => {
+      await fs.writeFile(path.join(dataDir, "proposals.json"), JSON.stringify(proposals, null, 2));
+    };
+
+    const draft = agenticProposals[idx];
+    const newProposal = {
+      id: Math.random().toString(36).slice(2) + Date.now(),
+      title: draft.title,
+      description: draft.description,
+      category: draft.category,
+      createdBy,
+      createdAt: new Date().toISOString(),
+      fromAI: true
+    };
+    const proposals = await loadProposals();
+    proposals.push(newProposal);
+
+    // Mark agentic as published
+    agenticProposals[idx].published = true;
+    await saveAgenticProposals(agenticProposals);
+    await saveProposals(proposals);
+
+    res.json({ success: true, proposal: newProposal, message: "AI proposal published to DAO." });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to publish agentic proposal" });
+  }
+});
 
 // API Routes
 app.get('/health', (req, res) => {
