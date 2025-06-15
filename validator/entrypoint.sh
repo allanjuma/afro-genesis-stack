@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 IPC_PATH="/root/.ethereum/geth.ipc"
@@ -222,6 +221,13 @@ echo "Validator Address: ${AFRO_VALIDATOR_ADDRESS}"
 
 # Start geth in the background
 echo "🚀 Starting geth node in background..."
+
+# Use a static/fallback bootnode, or omit if not needed. This avoids the buggy .tmp IPC usage.
+GETH_BOOTNODES_ARG=""
+if [ -n "$AFRO_BOOTSTRAP_DOMAIN" ]; then
+    GETH_BOOTNODES_ARG="--bootnodes enode://00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000@${AFRO_BOOTSTRAP_DOMAIN}:${P2P_PORT}"
+fi
+
 geth \
     --networkid ${NETWORK_ID} \
     --datadir /root/.ethereum \
@@ -236,7 +242,7 @@ geth \
     --ws.origins "*" \
     --ws.api "eth,net,web3,personal,admin,miner,afro" \
     --port ${P2P_PORT} \
-    --bootnodes "enode://$(geth --exec "admin.nodeInfo.id" --datadir /root/.ethereum/.tmp attach)@127.0.0.1:${P2P_PORT}" \
+    $GETH_BOOTNODES_ARG \
     --syncmode "full" \
     --maxpeers 25 \
     --mine \
