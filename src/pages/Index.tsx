@@ -1,10 +1,10 @@
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import NetworkStats from "@/components/NetworkStats";
 import AddressGenerationStats from "@/components/AddressGenerationStats";
 import ValidatorNodeInfo from "@/components/ValidatorNodeInfo";
 import StackManager from "@/components/StackManager";
+import EndpointManager from "@/components/EndpointManager";
 import { Activity, Network, Phone, Server, Settings } from "lucide-react";
 import DarkModeSwitch from "@/components/DarkModeSwitch";
 import ServiceLogs from "@/components/ServiceLogs";
@@ -59,6 +59,7 @@ const Index = () => {
 
           <TabsContent value="network" className="space-y-6">
             <NetworkStats />
+            <EndpointManager />
             <Card>
               <CardHeader>
                 <CardTitle>Network Overview</CardTitle>
@@ -87,12 +88,10 @@ const Index = () => {
             <StackManager />
           </TabsContent>
 
-          {/* CEO AGENT FUNCTIONS */}
           <TabsContent value="ceo" className="space-y-6">
             <CeoAgentManager />
           </TabsContent>
 
-          {/* Logs */}
           <TabsContent value="logs" className="space-y-6">
             <Card>
               <CardHeader>
